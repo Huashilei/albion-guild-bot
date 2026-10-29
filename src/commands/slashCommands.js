@@ -452,10 +452,11 @@ export async function handleSlashCommands(req, res, client) {
           );
 
         // Post the message in the thread
+        const registerRoleId = loadAlbionConfig(guildId).registerRoleId;
         await DiscordRequest(`channels/${threadId}/messages`, {
           method: 'POST',
           body: {
-            content:"<@&1344897722196430879>",
+            ...(registerRoleId ? { content: `<@&${registerRoleId}>` } : {}),
             embeds: [embed.toJSON()]
           },
         });

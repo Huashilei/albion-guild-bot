@@ -7,6 +7,7 @@ import {
 } from '../systems/ticket/ticket-system.js';
 import { buildPaginatedHelpEmbeds, buildHelpNavigationButtons } from '../utils/embedBuilder.js';
 import { registerUser } from '../systems/albion/albion.js';
+import { loadAlbionConfig } from '../systems/albion/albion-db.js';
 import {
   REGISTER_REGION_PREFIX, REGISTER_TYPE_PREFIX, REGISTER_MODAL_PREFIX, REGISTER_IGN_FIELD,
   buildRegionPanel, buildTypePanel, buildIgnModal, buildRegistrationResponse, isValidRegion
@@ -269,10 +270,11 @@ export async function handleButtonInteractions(req, res, client) {
       const threadData = await threadResponse.json();
       const threadId = threadData.id;
 
+      const registerRoleId = loadAlbionConfig(req.body.guild_id).registerRoleId;
       const messageResponse = await DiscordRequest(`channels/${threadId}/messages`, {
         method: 'POST',
         body: {
-          content: '<@&1344897722196430879>',
+          ...(registerRoleId ? { content: `<@&${registerRoleId}>` } : {}),
           embeds: [embed.toJSON()],
           components: buildContentComponents().map(r => r.toJSON()),
         },
