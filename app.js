@@ -9,6 +9,7 @@ import { handleButtonInteractions, handleModalSubmit } from './src/events/intera
 import { handleSlashCommands } from './src/commands/slashCommands.js';
 import { registerCommands } from './commands.js';
 import { scheduleEphemeralDismiss } from './utils.js';
+import { handleVoiceStateUpdate, cleanupTempChannels } from './src/systems/tempvc/temp-vc.js';
 
 // Ensure data directory exists
 if (!fs.existsSync(DATA_DIR)) {
@@ -27,13 +28,15 @@ const client = new Client({
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
-    GatewayIntentBits.GuildMembers
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildVoiceStates
   ] 
 });
 
 // Gateway connected event
 client.once('clientReady', () => {
   console.log(`Gateway connected as ${client.user.tag}`);
+  cleanupTempChannels(client).catch((err) => console.error('❌ Temp VC cleanup failed:', err));
 });
 
 // Client ready event
@@ -50,6 +53,9 @@ registerCommands()
 client.on('messageCreate', async (message) => {
   await handleMessageCreate(message, client);
 });
+
+// Join-to-create voice channels
+client.on('voiceStateUpdate', handleVoiceStateUpdate);
 
 // Login to Discord
 client.login(process.env.DISCORD_TOKEN);

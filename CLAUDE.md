@@ -22,6 +22,7 @@ White-label Discord bot for Albion Online guilds. Node ESM (`"type": "module"`),
 - `src/systems/hub/member-hub.js`: Member Hub panel plus shared balance and unregister response builders.
 - `src/systems/bank/bank.js`: per-server balances.
 - `src/systems/ticket/`: forum-based application tickets (`ticket-system.js` handlers, `ticket-db.js` storage, `ticket-commands.js` prefix helpers, `ticket-utils.js` stats/health).
+- `src/systems/tempvc/temp-vc.js`: join-to-create voice. Joining a voice channel named `CREATE VC` (case-insensitive) creates `<name>'s VC` in the same category (copies bitrate, user limit, overwrites), moves the member in, and deletes it when empty. Temp channel ids persist in `DATA_DIR/temp-vc.json` for cleanup after restarts. Needs the `GuildVoiceStates` intent and Manage Channels + Move Members permissions.
 - `src/database/guildData.js`: prefix and role-permission files. `src/utils/permissions.js`: `hasPermission` (gateway member) and `hasPermissionSlash` (raw interaction member). `src/utils/embedBuilder.js`: help pages and the registered-members list. `src/utils/atomicFile.js`: atomic JSON write.
 
 ### Data files (all under `DATA_DIR`)
@@ -94,6 +95,9 @@ In the active content thread: `x <role>` (key or short label), `x fill`, `x canc
 - The register role doubles as the content/regear ping role.
 
 ## Changelog
+
+### Join-to-create voice
+- Added `src/systems/tempvc/` and the `voiceStateUpdate` handler in `app.js`; added `GuildVoiceStates` intent. No config or commands: a voice channel just has to be named `CREATE VC`.
 
 ### Simplification pass
 - `/ticket setup` cut from 6 required options (panel_id, ticket_type, category ID text, ping role, comma-separated staff role IDs, transcript channel) to 3 pickers (forum, staff_role, transcript_channel) plus optional ping_role and message. It also posts the Apply button, so a separate `/ticket panel` is no longer needed. `/ticket delete` and `/ticket panel` lost their `panel_id` option. This fixes the stale `approve_role`/`nickname_format` option reads.
