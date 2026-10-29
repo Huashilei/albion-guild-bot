@@ -8,6 +8,7 @@ import { handleMessageCreate } from './src/events/messageCreate.js';
 import { handleButtonInteractions, handleModalSubmit } from './src/events/interactionCreate.js';
 import { handleSlashCommands } from './src/commands/slashCommands.js';
 import { registerCommands } from './commands.js';
+import { scheduleEphemeralDismiss } from './utils.js';
 
 // Ensure data directory exists
 if (!fs.existsSync(DATA_DIR)) {
@@ -59,10 +60,18 @@ client.login(process.env.DISCORD_TOKEN);
  */
 app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async function (req, res) {
   try {
-    console.log('🔔 Interaction received:', JSON.stringify(req.body, null, 2));
-    
     // Interaction type and data
     const { type, id, data, member, user } = req.body;
+
+    // Immediate ephemeral replies clean themselves up (deferred ones are
+    // handled in DiscordRequest when the final edit is sent)
+    const sendResponse = res.send.bind(res);
+    res.send = (body) => {
+      if (body?.type === InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE) {
+        scheduleEphemeralDismiss(process.env.APP_ID, req.body.token, body.data);
+      }
+      return sendResponse(body);
+    };
     
     // Extract user information
     const executor = member?.user || user;
@@ -71,7 +80,7 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
     
     // Clean logging with user info
     const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false });
-    const commandName = data?.name ? `/${data.name}` : type === 2 ? 'Button' : 'Interaction';
+    const commandName = data?.name ? `/${data.name}` : type === InteractionType.MESSAGE_COMPONENT ? 'Button' : 'Interaction';
     console.log(`[${timestamp}] ${commandName} | User: ${userName} (${userId})`);
 
     /**

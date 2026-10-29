@@ -10,8 +10,9 @@ import { contentState, pendingCreations } from '../config/contentState.js';
 import { buildContentEmbed, buildContentComponents, buildSizeSelector, autoAssignFillPlayers, getRoleDisplayName } from '../services/contentService.js';
 import { savePanels, loadPanels } from '../systems/ticket/ticket-db.js';
 import { getTicketStats, ticketSystemHealthCheck } from '../systems/ticket/ticket-utils.js';
-import { registerUser, unregisterUser, purgeUsers } from '../systems/albion/albion.js';
-import { buildRegionPanel, buildRegistrationResponse } from '../systems/albion/register-ui.js';
+import { unregisterUser, purgeUsers } from '../systems/albion/albion.js';
+import { buildTypePanel } from '../systems/albion/register-ui.js';
+import { buildHubPanel, buildBalanceBody, buildUnregisterBody } from '../systems/hub/member-hub.js';
 import { loadAlbionConfig, saveAlbionConfig, validateAlbionConfig, findAlbionUsersByIGN, getAllAlbionUsers } from '../systems/albion/albion-db.js';
 
 export async function handleSlashCommands(req, res, client) {
@@ -452,10 +453,11 @@ export async function handleSlashCommands(req, res, client) {
           );
 
         // Post the message in the thread
+        const registerRoleId = loadAlbionConfig(guildId).registerRoleId;
         await DiscordRequest(`channels/${threadId}/messages`, {
           method: 'POST',
           body: {
-            content:"<@&1344897722196430879>",
+            ...(registerRoleId ? { content: `<@&${registerRoleId}>` } : {}),
             embeds: [embed.toJSON()]
           },
         });
@@ -732,10 +734,12 @@ export async function handleSlashCommands(req, res, client) {
         )
         .setTimestamp();
 
+      // Private reply: balances are nobody else's business, and it cleans itself up
       return res.send({
         type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
         data: {
-          embeds: [embed.toJSON()]
+          embeds: [embed.toJSON()],
+          flags: 64
         },
       });
     }
@@ -749,6 +753,7 @@ export async function handleSlashCommands(req, res, client) {
           type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
           data: {
             content: '📊 No users currently have money in the bank.',
+            flags: 64
           },
         });
       }
@@ -767,7 +772,8 @@ export async function handleSlashCommands(req, res, client) {
       return res.send({
         type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
         data: {
-          embeds: [embed.toJSON()]
+          embeds: [embed.toJSON()],
+          flags: 64
         },
       });
     }
@@ -875,72 +881,54 @@ export async function handleSlashCommands(req, res, client) {
       });
     }
 
-    // Subcommand: setup
+    // Subcommand: setup - saves the single 'apply' panel and posts the button here
     if (subcommand === 'setup') {
       const options = req.body.data.options[0].options;
-      const panelId = options.find(o => o.name === 'panel_id').value;
-      const ticketTypeName = options.find(o => o.name === 'ticket_type').value;
-      const ticketCategoryId = options.find(o => o.name === 'category').value;
-      const pingRoleId = options.find(o => o.name === 'ping_role').value;
-      const staffRoleIds = options.find(o => o.name === 'staff_roles').value.split(',').map(id => id.trim());
-      const approveRoleId = options.find(o => o.name === 'approve_role')?.value || pingRoleId;
-      const transcriptChannelId = options.find(o => o.name === 'transcript_channel').value;
-      const nicknameFormat = options.find(o => o.name === 'nickname_format')?.value || '{username}';
+      const get = (n) => options.find(o => o.name === n)?.value;
+      const ticketCategoryId = get('forum');
+      const staffRoleId = get('staff_role');
+      const transcriptChannelId = get('transcript_channel');
+      const pingRoleId = get('ping_role') || staffRoleId;
+      const customMessage = get('message') || null;
 
       try {
         const forumChannel = await client.channels.fetch(ticketCategoryId).catch(() => null);
         if (!forumChannel || forumChannel.type !== ChannelType.GuildForum) {
           return res.send({
             type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-            data: {
-              content: '❌ Invalid forum channel. Please select your applicants Forum channel.',
-              flags: 64
-            },
+            data: { content: '❌ Pick a Forum channel for applications.', flags: 64 },
           });
         }
 
+        const panelId = 'apply';
         const panels = await loadPanels(guildId);
-        const existingIndex = panels.findIndex(p => p.panelId === panelId);
-        
         const newPanel = {
           panelId,
-          ticketTypeName,
+          ticketTypeName: 'Apply',
           ticketCategoryId,
           pingRoleId,
-          staffRoleIds,
-          approveRoleId,
+          staffRoleIds: [staffRoleId],
+          approveRoleId: pingRoleId,
           transcriptChannelId,
-          nicknameFormat
+          nicknameFormat: '{username}'
         };
-
+        const existingIndex = panels.findIndex(p => p.panelId === panelId);
         if (existingIndex >= 0) {
-          panels[existingIndex] = {
-            ...panels[existingIndex],
-            ...newPanel
-          };
+          panels[existingIndex] = { ...panels[existingIndex], ...newPanel };
         } else {
           panels.push(newPanel);
         }
-
         await savePanels(guildId, panels);
 
-        const embed = new EmbedBuilder()
-          .setTitle('✅ Ticket Panel Configured')
-          .addFields(
-            { name: 'Panel ID', value: panelId, inline: true },
-            { name: 'Ticket Type', value: ticketTypeName, inline: true },
-            { name: 'Forum Channel', value: `<#${ticketCategoryId}>`, inline: true },
-            { name: 'Ping Role', value: `<@&${pingRoleId}>`, inline: true },
-            { name: 'Transcript Channel', value: `<#${transcriptChannelId}>`, inline: true },
-            { name: 'Staff Roles', value: staffRoleIds.map(id => `<@&${id}>`).join(', '), inline: false }
-          )
-          .setColor(0x57F287)
-          .setTimestamp();
+        const { createApplyPanelMessage } = await import('../systems/ticket/ticket-system.js');
+        const channel = await client.channels.fetch(req.body.channel_id);
+        await channel.send(createApplyPanelMessage(customMessage));
 
         return res.send({
           type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
           data: {
-            embeds: [embed.toJSON()],
+            content: `✅ Applications set up. Forum: <#${ticketCategoryId}> • Staff: <@&${staffRoleId}> • Logs: <#${transcriptChannelId}>
+The Apply button was posted in this channel.`,
             flags: 64
           },
         });
@@ -949,10 +937,7 @@ export async function handleSlashCommands(req, res, client) {
         console.error('Error setting up ticket panel:', error);
         return res.send({
           type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-          data: {
-            content: '❌ Failed to setup ticket panel. Check the console for details.',
-            flags: 64
-          },
+          data: { content: '❌ Failed to set up applications. Check the bot can send messages here and read the forum.', flags: 64 },
         });
       }
     }
@@ -1014,7 +999,7 @@ export async function handleSlashCommands(req, res, client) {
 
     // Subcommand: delete
     if (subcommand === 'delete') {
-      const panelId = req.body.data.options[0].options[0].value;
+      const panelId = 'apply';
 
       try {
         const panels = await loadPanels(guildId);
@@ -1125,7 +1110,7 @@ export async function handleSlashCommands(req, res, client) {
         if (health.issues.length > 0) {
           embed.addFields({
             name: 'Issues',
-            value: health.issues.join('\\n'),
+            value: health.issues.join('\n'),
             inline: false
           });
         }
@@ -1154,7 +1139,7 @@ export async function handleSlashCommands(req, res, client) {
     if (subcommand === 'panel') {
       try {
         const options = req.body.data.options[0].options || [];
-        const panelId = options.find(o => o.name === 'panel_id')?.value || 'apply';
+        const panelId = 'apply';
         const customMessage = options.find(o => o.name === 'message')?.value || null;
 
         // Verify panel exists
@@ -1165,7 +1150,7 @@ export async function handleSlashCommands(req, res, client) {
           return res.send({
             type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
             data: {
-              content: `❌ Panel "${panelId}" not found. Use \`/ticket list\` to see available panels.`,
+              content: '❌ Applications are not set up yet. Run `/ticket setup` first.',
               flags: 64
             },
           });
@@ -1697,7 +1682,18 @@ export async function handleSlashCommands(req, res, client) {
   if (name === 'config') {
     console.log('📋 Executing /config command');
     const guildId = req.body.guild_id;
+    const member = req.body.member;
     const subcommand = req.body.data.options[0].name;
+
+    // Config exposes role IDs and guild settings - admins only
+    const isAdmin = member?.permissions &&
+      (BigInt(member.permissions) & BigInt(PermissionFlagsBits.Administrator)) === BigInt(PermissionFlagsBits.Administrator);
+    if (!isAdmin) {
+      return res.send({
+        type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+        data: { content: '❌ You need Administrator permission to use this command.', flags: 64 },
+      });
+    }
 
     if (subcommand === 'view') {
       const config = loadAlbionConfig(guildId);
@@ -1735,81 +1731,14 @@ export async function handleSlashCommands(req, res, client) {
     }
   }
 
-  // "/register" command - Register user's Albion character
+  // "/register" command - opens the guided panel (guild/alliance -> name).
+  // The region comes from /set guild, so there is nothing for players to type.
   if (name === 'register') {
     console.log('📝 Executing /register command');
-    const guildId = req.body.guild_id;
-    const userId = req.body.member?.user?.id || req.body.user?.id;
-    const options = req.body.data.options || [];
-    const region = options.find(opt => opt.name === 'region')?.value;
-    const registerType = (options.find(opt => opt.name === 'type')?.value || 'guild').toLowerCase();
-
-    // Support both legacy (ign) and new (name) option names.
-    const ignOption = options.find(opt => opt.name === 'name') || options.find(opt => opt.name === 'ign');
-    const playerIdOption = options.find(opt => opt.name === 'playerid');
-
-    const ign = ignOption?.value || null;
-    const playerId = playerIdOption?.value || null;
-
-    // No shortcut options given: show the guided panel (region -> type -> name)
-    if (!region || !options.find(opt => opt.name === 'type') || (!ign && !playerId)) {
-      return res.send({
-        type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-        data: { ...buildRegionPanel(), flags: 64 }
-      });
-    }
-
-    if (registerType === 'alliance' && region !== 'asia') {
-      return res.send({
-        type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-        data: {
-          content: '❌ Alliance registration currently supports only `region: asia`.',
-          flags: 64
-        }
-      });
-    }
-
-    // Defer response for API call
-    res.send({
-      type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
-      data: { flags: 64 }
+    return res.send({
+      type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+      data: { ...buildTypePanel(loadAlbionConfig(req.body.guild_id)), flags: 64 }
     });
-
-    try {
-      const guild = client.guilds.cache.get(guildId);
-      
-      if (!guild) {
-        await DiscordRequest(`webhooks/${process.env.APP_ID}/${req.body.token}/messages/@original`, {
-          method: 'PATCH',
-          body: {
-            content: '❌ Failed to fetch guild information.',
-            flags: 64
-          }
-        });
-        return;
-      }
-
-      // Perform registration
-      const result = await registerUser(guild, userId, region, ign, playerId, registerType);
-
-      await DiscordRequest(`webhooks/${process.env.APP_ID}/${req.body.token}/messages/@original`, {
-        method: 'PATCH',
-        body: buildRegistrationResponse(result, { userId, region, registerType, ign, playerId })
-      });
-
-    } catch (error) {
-      console.error('Error in /register command:', error);
-      
-      await DiscordRequest(`webhooks/${process.env.APP_ID}/${req.body.token}/messages/@original`, {
-        method: 'PATCH',
-        body: {
-          content: '❌ An unexpected error occurred during registration.',
-          flags: 64
-        }
-      });
-    }
-    
-    return;
   }
 
   // "/unregister" command - Unregister user's character
@@ -1818,85 +1747,60 @@ export async function handleSlashCommands(req, res, client) {
     const guildId = req.body.guild_id;
     const userId = req.body.member?.user?.id || req.body.user?.id;
 
-    // Defer response
     res.send({
       type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
       data: { flags: 64 }
     });
 
+    let body;
     try {
       const guild = client.guilds.cache.get(guildId);
-      
-      if (!guild) {
-        await DiscordRequest(`webhooks/${process.env.APP_ID}/${req.body.token}/messages/@original`, {
-          method: 'PATCH',
-          body: {
-            content: '❌ Failed to fetch guild information.',
-            flags: 64
-          }
-        });
-        return;
-      }
-
-      // Remove both registration types so alliance-only or guild-only users can unregister.
-      // (Legacy 'player' registrations are normalized to 'guild' on load - see albion-db.js.)
-      const unregisterAttempts = await Promise.all([
-        unregisterUser(guild, userId, 'alliance'),
-        unregisterUser(guild, userId, 'guild')
-      ]);
-
-      const successful = unregisterAttempts.filter((entry) => entry.success);
-
-      if (successful.length === 0) {
-        await DiscordRequest(`webhooks/${process.env.APP_ID}/${req.body.token}/messages/@original`, {
-          method: 'PATCH',
-          body: {
-            content: '❌ You are not registered in the system.',
-            flags: 64
-          }
-        });
-        return;
-      }
-
-      const result = successful[0];
-      const removedTypes = successful
-        .map((entry) => (entry.data?.registerType || 'guild').toUpperCase())
-        .join(', ');
-
-      // Success
-      const embed = new EmbedBuilder()
-        .setColor(0x5865F2)
-        .setTitle('✅ Unregistered Successfully')
-        .setDescription('Your registration has been removed from the verification system.')
-        .addFields(
-          { name: 'Previous IGN', value: result.data.ign, inline: true },
-          { name: 'Removed Type(s)', value: removedTypes, inline: true },
-          { name: 'Role Removed', value: result.data.roleRemoved ? '✅ Yes' : '⚠️ No', inline: true },
-          { name: 'Nickname Reset', value: result.data.nicknameReset ? '✅ Yes' : '⚠️ No', inline: true }
-        )
-        .setTimestamp();
-
-      await DiscordRequest(`webhooks/${process.env.APP_ID}/${req.body.token}/messages/@original`, {
-        method: 'PATCH',
-        body: {
-          embeds: [embed.toJSON()],
-          flags: 64
-        }
-      });
-
+      body = guild
+        ? await buildUnregisterBody(guild, userId)
+        : { content: '❌ Failed to fetch guild information.', flags: 64 };
     } catch (error) {
       console.error('Error in /unregister command:', error);
-      
-      await DiscordRequest(`webhooks/${process.env.APP_ID}/${req.body.token}/messages/@original`, {
-        method: 'PATCH',
-        body: {
-          content: '❌ An unexpected error occurred during unregistration.',
-          flags: 64
-        }
+      body = { content: '❌ An unexpected error occurred during unregistration.', flags: 64 };
+    }
+
+    await DiscordRequest(`webhooks/${process.env.APP_ID}/${req.body.token}/messages/@original`, {
+      method: 'PATCH',
+      body
+    });
+    return;
+  }
+
+  // "/panel" command - post the public member hub (Admin only)
+  if (name === 'panel') {
+    const member = req.body.member;
+    const isAdmin = member?.permissions &&
+      (BigInt(member.permissions) & BigInt(PermissionFlagsBits.Administrator)) === BigInt(PermissionFlagsBits.Administrator);
+
+    if (!isAdmin) {
+      return res.send({
+        type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+        data: { content: '❌ You need Administrator permission to use this command.', flags: 64 },
       });
     }
-    
-    return;
+
+    const message = req.body.data.options?.find(o => o.name === 'message')?.value || null;
+    try {
+      await DiscordRequest(`channels/${req.body.channel_id}/messages`, {
+        method: 'POST',
+        body: buildHubPanel(message?.replace(/\\n/g, '\n')),
+      });
+    } catch (error) {
+      console.error('Error posting member hub:', error);
+      return res.send({
+        type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+        data: { content: '❌ Could not post the panel here. Check the bot can send messages in this channel.', flags: 64 },
+      });
+    }
+
+    return res.send({
+      type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+      data: { content: '✅ Member hub posted.', flags: 64 },
+    });
   }
 
   // "/forceunregister" command - Force unregister by IGN (Admin only)

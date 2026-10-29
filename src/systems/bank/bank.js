@@ -6,12 +6,11 @@
 import fs from 'fs';
 import path from 'path';
 import { writeJsonAtomicSync } from '../../utils/atomicFile.js';
+import { DATA_DIR } from '../../config/constants.js';
 
 // Currency symbol
 export const CURRENCY = '💰';
 
-// Data directory from environment variable (default: /home/container/data)
-const DATA_DIR = process.env.DATA_DIR || '/home/container/data';
 const getBankFile = (guildId) => path.join(DATA_DIR, `bank-data-${guildId}.json`);
 
 /**

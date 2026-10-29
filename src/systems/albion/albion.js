@@ -296,6 +296,11 @@ export async function registerUser(guild, discordId, region, ign, playerId = nul
   const normalizedType = normalizeRegisterType(registerType);
   const config = loadAlbionConfig(guildId);
 
+  // The server's configured region always wins: both the guild and its alliance
+  // live on one Albion server, and a caller-supplied region would let someone
+  // match a same-named guild/player on a different server.
+  region = config.albionRegion || region;
+
   let validation;
 
   if (normalizedType === 'alliance') {
@@ -432,6 +437,7 @@ export async function registerUser(guild, discordId, region, ign, playerId = nul
     message: successMessage,
     data: {
       ign: validation.data.Name,
+      region,
       guild: validation.data.GuildName,
       alliance: validation.data.AllianceName,
       allianceTag: validation.data.AllianceTag,

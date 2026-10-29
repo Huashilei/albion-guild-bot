@@ -1,6 +1,8 @@
 /**
- * Guided /register flow: region buttons -> join-type buttons -> IGN modal.
- * Stateless: each step carries the previous choices in its custom_id.
+ * Guided registration flow: join-type buttons -> IGN modal.
+ * The Albion region always comes from the server's /set guild config, so
+ * players never have to pick (or mis-pick) it. Stateless: the type is carried
+ * in each step's custom_id.
  */
 
 import {
@@ -13,76 +15,55 @@ import {
   TextInputStyle
 } from 'discord.js';
 
-export const REGISTER_REGION_PREFIX = 'albreg_region_';
 export const REGISTER_TYPE_PREFIX = 'albreg_type_';
 export const REGISTER_MODAL_PREFIX = 'albreg_modal_';
 export const REGISTER_IGN_FIELD = 'albreg_ign';
 
-const REGIONS = [
-  { value: 'americas', label: 'Americas (West)' },
-  { value: 'europe', label: 'Europe' },
-  { value: 'asia', label: 'Asia (East)' }
-];
-
-const REGION_LABELS = Object.fromEntries(REGIONS.map((r) => [r.value, r.label]));
-
-export function isValidRegion(region) {
-  return Object.hasOwn(REGION_LABELS, region);
+export function isValidRegisterType(type) {
+  return ['guild', 'alliance'].includes(type);
 }
 
-export function buildRegionPanel() {
-  const embed = new EmbedBuilder()
-    .setColor(0x5865F2)
-    .setTitle('📝 Register your Albion character')
-    .setDescription('**Step 1 of 3** - Which Albion server do you play on?');
-
-  const row = new ActionRowBuilder().addComponents(
-    REGIONS.map((r) =>
-      new ButtonBuilder()
-        .setCustomId(`${REGISTER_REGION_PREFIX}${r.value}`)
-        .setLabel(r.label)
-        .setStyle(ButtonStyle.Primary)
-    )
-  );
-
-  return { embeds: [embed.toJSON()], components: [row.toJSON()] };
+/** Message body for when registration isn't usable yet (admin hasn't run /set). */
+export function buildNotConfiguredPanel() {
+  return {
+    content: '❌ Registration is not set up on this server yet. Ask an admin to run `/set guild` and `/set register-role`.',
+    embeds: [],
+    components: []
+  };
 }
 
-export function buildTypePanel(region) {
+export function buildTypePanel(config) {
+  if (!config?.albionRegion || !config?.albionGuildName) {
+    return buildNotConfiguredPanel();
+  }
+
   const embed = new EmbedBuilder()
     .setColor(0x5865F2)
     .setTitle('📝 Register your Albion character')
     .setDescription(
-      `**Step 2 of 3** - Server: **${REGION_LABELS[region]}**\n\n` +
       'How are you joining?\n' +
-      '• **Guild member** - you are in our guild in-game\n' +
-      '• **Alliance member** - you are in our alliance (another guild) in-game' +
-      (region !== 'asia' ? '\n\n*Alliance registration is currently only available on the Asia server.*' : '')
+      `• **Guild member** - you are in **${config.albionGuildName}** in-game\n` +
+      '• **Alliance member** - you are in our alliance (another guild) in-game'
     );
 
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
-      .setCustomId(`${REGISTER_TYPE_PREFIX}${region}_guild`)
+      .setCustomId(`${REGISTER_TYPE_PREFIX}guild`)
       .setLabel('Guild member')
       .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
-      .setCustomId(`${REGISTER_TYPE_PREFIX}${region}_alliance`)
+      .setCustomId(`${REGISTER_TYPE_PREFIX}alliance`)
       .setLabel('Alliance member')
       .setStyle(ButtonStyle.Primary)
-      .setDisabled(region !== 'asia'),
-    new ButtonBuilder()
-      .setCustomId('albreg_back')
-      .setLabel('Back')
-      .setStyle(ButtonStyle.Secondary)
   );
 
   return { embeds: [embed.toJSON()], components: [row.toJSON()] };
 }
 
-export function buildIgnModal(region, registerType) {
+export function buildIgnModal(registerType) {
   return new ModalBuilder()
-    .setCustomId(`${REGISTER_MODAL_PREFIX}${region}_${registerType}`)
-    .setTitle('Step 3 of 3 - Your character')
+    .setCustomId(`${REGISTER_MODAL_PREFIX}${registerType}`)
+    .setTitle('Your character')
     .addComponents(
       new ActionRowBuilder().addComponents(
         new TextInputBuilder()
@@ -145,7 +126,7 @@ export function buildRegistrationResponse(result, { userId, region, registerType
       content = `❌ ${result.message}`;
     } else if (result.error === 'PLAYER_NOT_FOUND') {
       const identifier = playerId ? `Player ID **${playerId}**` : `Player **${ign}**`;
-      content = `❌ ${identifier} not found in **${region}** region.\n\nPlease check:\n• Spelling of your in-game name\n• Player ID is correct\n• Selected region is correct`;
+      content = `❌ ${identifier} not found on the **${region}** server.\n\nPlease check the spelling of your in-game name.`;
     } else if (result.error === 'NO_ALLIANCE') {
       content = `❌ Player **${who}** is not in any alliance.\n\nYou must join an alliance in-game first, then register.`;
     } else if (result.error === 'NO_GUILD') {
@@ -158,7 +139,7 @@ export function buildRegistrationResponse(result, { userId, region, registerType
       content = `❌ ${result.message}\n\nPlease contact an administrator.`;
     }
 
-    return { ...base, content: `${content}\n\nUse \`/register\` to try again.` };
+    return { ...base, content: `${content}\n\nClick **Register** to try again.` };
   }
 
   const embed = new EmbedBuilder()
@@ -168,7 +149,7 @@ export function buildRegistrationResponse(result, { userId, region, registerType
     .addFields(
       { name: 'In-Game Name', value: result.data.ign, inline: true },
       { name: 'Type', value: (result.data.registerType || registerType).toUpperCase(), inline: true },
-      { name: 'Region', value: region.toUpperCase(), inline: true }
+      { name: 'Region', value: (result.data.region || region).toUpperCase(), inline: true }
     )
     .setTimestamp();
 

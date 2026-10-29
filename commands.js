@@ -459,7 +459,7 @@ const SET_COMMAND = {
 // Albion config view command
 const CONFIG_COMMAND = {
   name: 'config',
-  description: 'View current Albion guild verification configuration',
+  description: 'View current Albion guild verification configuration (Admin only)',
   options: [
     {
       type: 1, // SUB_COMMAND
@@ -467,50 +467,35 @@ const CONFIG_COMMAND = {
       description: 'View current configuration'
     }
   ],
+  default_member_permissions: '8', // Administrator only
   type: 1,
   integration_types: [0],
   contexts: [0]
 };
 
-// Albion user registration command
+// Albion user registration command - no options: the guided panel asks
+// guild/alliance, then the in-game name. Region comes from /set guild.
 const REGISTER_COMMAND = {
   name: 'register',
-  description: 'Register your Albion Online character (guided - just run /register)',
+  description: 'Register your Albion Online character',
+  type: 1,
+  integration_types: [0],
+  contexts: [0]
+};
+
+// Posts the public member hub (Register / Unregister / Balance / Help buttons)
+const PANEL_COMMAND = {
+  name: 'panel',
+  description: 'Post the member hub buttons in this channel (Admin only)',
   options: [
     {
       type: 3, // STRING
-      name: 'region',
-      description: 'Optional shortcut: your Albion server region',
-      required: false,
-      choices: [
-        { name: 'Americas', value: 'americas' },
-        { name: 'Europe', value: 'europe' },
-        { name: 'Asia', value: 'asia' }
-      ]
-    },
-    {
-      type: 3,
-      name: 'type',
-      description: 'Optional shortcut: registration type',
-      required: false,
-      choices: [
-        { name: 'Alliance', value: 'alliance' },
-        { name: 'Guild', value: 'guild' }
-      ]
-    },
-    {
-      type: 3,
-      name: 'name',
-      description: 'Your in-game name',
-      required: false
-    },
-    {
-      type: 3,
-      name: 'playerid',
-      description: 'Your Player ID (optional alternative to name)',
+      name: 'message',
+      description: 'Optional custom text for the panel (type \\n for a new line)',
       required: false
     }
   ],
+  default_member_permissions: '8', // Administrator only
   type: 1,
   integration_types: [0],
   contexts: [0]
@@ -602,44 +587,13 @@ const TICKET_COMMAND = {
     {
       type: 1, // SUB_COMMAND
       name: 'setup',
-      description: 'Setup or update a ticket panel',
+      description: 'Set up applications: saves the settings and posts the Apply button here',
       options: [
-        {
-          type: 3, // STRING
-          name: 'panel_id',
-          description: 'Unique panel identifier (e.g., "apply", "support")',
-          required: true,
-        },
-        {
-          type: 3,
-          name: 'ticket_type',
-          description: 'Display name for this ticket type (e.g., "Apply", "Support")',
-          required: true,
-        },
-        {
-          type: 3, // STRING
-          name: 'category',
-          description: 'Category ID where ticket channels will be created',
-          required: true,
-        },
-        {
-          type: 8, // ROLE
-          name: 'ping_role',
-          description: 'Role to ping when a ticket is created',
-          required: true,
-        },
-        {
-          type: 3,
-          name: 'staff_roles',
-          description: 'Staff role IDs (comma-separated, no spaces)',
-          required: true,
-        },
-        {
-          type: 7, // CHANNEL
-          name: 'transcript_channel',
-          description: 'Channel where ticket transcripts will be posted',
-          required: true,
-        },
+        { type: 7, name: 'forum', description: 'Forum channel where applications are created', required: true, channel_types: [15] },
+        { type: 8, name: 'staff_role', description: 'Role that reviews applications (also pinged unless ping_role is set)', required: true },
+        { type: 7, name: 'transcript_channel', description: 'Channel for open/close logs', required: true, channel_types: [0] },
+        { type: 8, name: 'ping_role', description: 'Role to ping on new applications (default: staff_role)', required: false },
+        { type: 3, name: 'message', description: 'Custom text for the Apply panel (type \\n for a new line)', required: false },
       ],
     },
     {
@@ -650,15 +604,7 @@ const TICKET_COMMAND = {
     {
       type: 1, // SUB_COMMAND
       name: 'delete',
-      description: 'Delete a ticket panel',
-      options: [
-        {
-          type: 3,
-          name: 'panel_id',
-          description: 'Panel ID to delete',
-          required: true,
-        },
-      ],
+      description: 'Remove the application setup',
     },
     {
       type: 1, // SUB_COMMAND
@@ -673,20 +619,9 @@ const TICKET_COMMAND = {
     {
       type: 1, // SUB_COMMAND
       name: 'panel',
-      description: 'Send the apply panel with button to current channel',
+      description: 'Re-post the Apply button panel in this channel',
       options: [
-        {
-          type: 3,
-          name: 'panel_id',
-          description: 'Panel ID to send (default: apply)',
-          required: false,
-        },
-        {
-          type: 3,
-          name: 'message',
-          description: 'Custom message for the panel (e.g., "Join our guild! Click Apply below.")',
-          required: false,
-        },
+        { type: 3, name: 'message', description: 'Custom text for the panel (type \\n for a new line)', required: false },
       ],
     },
     {
@@ -709,7 +644,7 @@ const TICKET_COMMAND = {
   contexts: [0],
 };
 
-export const ALL_COMMANDS = [UTC_COMMAND, INFO_COMMAND, HELP_COMMAND, CONTENT_COMMAND, REGEAR_COMMAND, BANK_COMMAND, PERMS_COMMAND, SET_COMMAND, CONFIG_COMMAND, REGISTER_COMMAND, UNREGISTER_COMMAND, FORCEUNREGISTER_COMMAND, PURGE_COMMAND, REGISTERED_COMMAND, TICKET_COMMAND];
+export const ALL_COMMANDS = [UTC_COMMAND, INFO_COMMAND, HELP_COMMAND, CONTENT_COMMAND, REGEAR_COMMAND, BANK_COMMAND, PERMS_COMMAND, SET_COMMAND, CONFIG_COMMAND, REGISTER_COMMAND, PANEL_COMMAND, UNREGISTER_COMMAND, FORCEUNREGISTER_COMMAND, PURGE_COMMAND, REGISTERED_COMMAND, TICKET_COMMAND];
 
 const HASH_FILE = path.join(DATA_DIR, 'commands-hash.json');
 

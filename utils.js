@@ -1,8 +1,38 @@
 import 'dotenv/config';
 
+const EPHEMERAL_FLAG = 64;
+const ORIGINAL_MESSAGE_PATH = /^webhooks\/([^/]+)\/([^/]+)\/messages\/@original$/;
+
+// How long a finished ephemeral message stays before the bot removes it, so
+// users aren't left clicking "Dismiss message". Short text goes quickly; embeds
+// (registration result, lists) stay long enough to read.
+function dismissDelayMs(body) {
+  if (body.embeds?.length) return 30_000;
+  const chars = String(body.content || '').length;
+  return Math.min(30_000, Math.max(8_000, 5_000 + chars * 50));
+}
+
+/**
+ * Delete an ephemeral interaction response after a delay. Only touches
+ * messages with no components - anything interactive (panels, wizards) must
+ * stay until the user finishes. Set EPHEMERAL_AUTO_DISMISS=false to disable.
+ */
+export function scheduleEphemeralDismiss(appId, token, body) {
+  if (process.env.EPHEMERAL_AUTO_DISMISS === 'false') return;
+  if (!appId || !token || !body) return;
+  if (!((body.flags ?? 0) & EPHEMERAL_FLAG) || body.components?.length) return;
+
+  setTimeout(() => {
+    DiscordRequest(`webhooks/${appId}/${token}/messages/@original`, { method: 'DELETE' }).catch(() => {});
+  }, dismissDelayMs(body)).unref();
+}
+
 export async function DiscordRequest(endpoint, options) {
   // append endpoint to root API URL
   const url = 'https://discord.com/api/v10/' + endpoint;
+  // Final edits of an interaction's original response auto-dismiss (see above)
+  const originalEdit = options.method === 'PATCH' ? ORIGINAL_MESSAGE_PATH.exec(endpoint) : null;
+  const dismissBody = originalEdit ? options.body : null;
   // Stringify payloads
   if (options.body) options.body = JSON.stringify(options.body);
   // Use fetch to make requests
@@ -20,6 +50,7 @@ export async function DiscordRequest(endpoint, options) {
     console.log(res.status);
     throw new Error(JSON.stringify(data));
   }
+  if (originalEdit) scheduleEphemeralDismiss(originalEdit[1], originalEdit[2], dismissBody);
   // return original response
   return res;
 }
