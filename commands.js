@@ -470,13 +470,13 @@ const CONFIG_COMMAND = {
 // Albion user registration command
 const REGISTER_COMMAND = {
   name: 'register',
-  description: 'Register your Albion Online character',
+  description: 'Register your Albion Online character (guided - just run /register)',
   options: [
     {
       type: 3, // STRING
       name: 'region',
-      description: 'Your Albion server region',
-      required: true,
+      description: 'Optional shortcut: your Albion server region',
+      required: false,
       choices: [
         { name: 'Americas', value: 'americas' },
         { name: 'Europe', value: 'europe' },
@@ -486,8 +486,8 @@ const REGISTER_COMMAND = {
     {
       type: 3,
       name: 'type',
-      description: 'Registration type',
-      required: true,
+      description: 'Optional shortcut: registration type',
+      required: false,
       choices: [
         { name: 'Alliance', value: 'alliance' },
         { name: 'Guild', value: 'guild' }

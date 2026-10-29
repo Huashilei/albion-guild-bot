@@ -108,8 +108,9 @@ All writes go through a temp-file-then-rename pattern (`src/utils/atomicFile.js`
 
 1. **Register your character:**
    ```
-   /register region:asia type:alliance name:YourCharacterName
+   /register
    ```
+   A panel walks you through it: pick your server region, pick Guild or Alliance, then type your in-game name. (Power users can still use the shortcut `/register region:asia type:alliance name:YourCharacterName`.)
 2. **Sign up for content** - in a content thread, type `x tank` (or your role), `x fill`, or `x cancel`.
 3. **Check your bank balance:** `/bank balance`
 
@@ -120,7 +121,7 @@ All writes go through a temp-file-then-rename pattern (`src/utils/atomicFile.js`
 | `/help` | Show all available commands |
 | `/utc` | Display current UTC time (Albion game time) |
 | `/info <playername>` | Search for any Albion player |
-| `/register region:<region> type:<alliance\|guild> name:<ign>` | Register your character - ties your IGN to your Discord account |
+| `/register` | Guided registration panel (region -> Guild/Alliance -> in-game name). Ties your IGN to your Discord account. Optional shortcut: `/register region:<region> type:<alliance\|guild> name:<ign>` |
 | `/unregister` | Unregister your character |
 | `/config view` | View guild verification settings |
 | `/bank balance [@user]` | Check your balance or another user's |

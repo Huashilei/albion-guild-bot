@@ -11,6 +11,7 @@ import { buildContentEmbed, buildContentComponents, buildSizeSelector, autoAssig
 import { savePanels, loadPanels } from '../systems/ticket/ticket-db.js';
 import { getTicketStats, ticketSystemHealthCheck } from '../systems/ticket/ticket-utils.js';
 import { registerUser, unregisterUser, purgeUsers } from '../systems/albion/albion.js';
+import { buildRegionPanel, buildRegistrationResponse } from '../systems/albion/register-ui.js';
 import { loadAlbionConfig, saveAlbionConfig, validateAlbionConfig, findAlbionUsersByIGN, getAllAlbionUsers } from '../systems/albion/albion-db.js';
 
 export async function handleSlashCommands(req, res, client) {
@@ -1750,22 +1751,19 @@ export async function handleSlashCommands(req, res, client) {
     const ign = ignOption?.value || null;
     const playerId = playerIdOption?.value || null;
 
+    // No shortcut options given: show the guided panel (region -> type -> name)
+    if (!region || !options.find(opt => opt.name === 'type') || (!ign && !playerId)) {
+      return res.send({
+        type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+        data: { ...buildRegionPanel(), flags: 64 }
+      });
+    }
+
     if (registerType === 'alliance' && region !== 'asia') {
       return res.send({
         type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
         data: {
           content: '❌ Alliance registration currently supports only `region: asia`.',
-          flags: 64
-        }
-      });
-    }
-
-    // Validate that at least one identifier is provided
-    if (!ign && !playerId) {
-      return res.send({
-        type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-        data: {
-          content: '❌ You must provide either an **IGN** (in-game name) or a **Player ID**.',
           flags: 64
         }
       });
@@ -1794,121 +1792,9 @@ export async function handleSlashCommands(req, res, client) {
       // Perform registration
       const result = await registerUser(guild, userId, region, ign, playerId, registerType);
 
-      if (!result.success) {
-        // Handle multiple matches
-        if (result.error === 'MULTIPLE_MATCHES') {
-          // Build embed showing all matching players
-          const embed = new EmbedBuilder()
-            .setColor(0xF0B900)
-            .setTitle('⚠️ Multiple Players Found')
-            .setDescription(`${result.message}\n\n**Click the button for your character:**`)
-            .setFooter({ text: 'Buttons will expire after 5 minutes' });
-
-          result.players.forEach((player, index) => {
-            const guildInfo = player.GuildName ? `**Guild:** ${player.GuildName}` : '**Guild:** None';
-            const allianceInfo = player.AllianceName ? `\n**Alliance:** ${player.AllianceName}` : '';
-            embed.addFields({
-              name: `${index + 1}. ${player.Name}`,
-              value: `**Player ID:** ${player.Id}\n${guildInfo}${allianceInfo}`,
-              inline: false
-            });
-          });
-
-          // Create buttons for each player (max 5)
-          const buttons = result.players.slice(0, 5).map((player, index) => 
-            new ButtonBuilder()
-                .setCustomId(`albion_register_${userId}_${region}_${registerType}_${player.Id}`)
-              .setLabel(`${index + 1}. ${player.GuildName || 'No Guild'}`)
-              .setStyle(player.GuildName ? ButtonStyle.Primary : ButtonStyle.Secondary)
-              .setEmoji(player.GuildName ? '✅' : '❌')
-          );
-
-          const row = new ActionRowBuilder().addComponents(buttons);
-
-          await DiscordRequest(`webhooks/${process.env.APP_ID}/${req.body.token}/messages/@original`, {
-            method: 'PATCH',
-            body: {
-              embeds: [embed.toJSON()],
-              components: [row],
-              flags: 64
-            }
-          });
-          return;
-        }
-
-        let errorMessage = `❌ Registration failed: ${result.message}`;
-        
-        if (result.error === 'ALREADY_REGISTERED') {
-          errorMessage = `❌ ${result.message}`;
-        } else if (result.error === 'IGN_ALREADY_REGISTERED') {
-          errorMessage = `❌ ${result.message}`;
-        } else if (result.error === 'PLAYER_NOT_FOUND') {
-          const identifier = playerId ? `Player ID **${playerId}**` : `Player **${ign}**`;
-          errorMessage = `❌ ${identifier} not found in **${region}** region.\n\nPlease check:\n• Spelling of your in-game name\n• Player ID is correct\n• Selected region is correct`;
-        } else if (result.error === 'NO_ALLIANCE') {
-          const playerName = result.data?.Name || ign || playerId;
-          errorMessage = `❌ Player **${playerName}** is not in any alliance.\n\nYou must join an alliance in-game first, then register.`;
-        } else if (result.error === 'NO_GUILD') {
-          const playerName = result.data?.Name || ign || playerId;
-          errorMessage = `❌ Player **${playerName}** is not in any guild.\n\nYou must join the guild in-game first, then register.`;
-        } else if (result.error === 'GUILD_MISMATCH') {
-          errorMessage = `❌ ${result.message}\n\nYou must be in the correct guild to register.`;
-        } else if (result.error === 'ALLIANCE_MISMATCH') {
-          errorMessage = `❌ ${result.message}\n\nYou must be in our allied alliance to register as Alliance.`;
-        } else if (result.error === 'GUILD_NOT_FOUND' || result.error === 'GUILD_NOT_IN_ALLIANCE') {
-          errorMessage = `❌ ${result.message}\n\nPlease contact an administrator.`;
-        } else if (result.error === 'INCOMPLETE_CONFIG') {
-          errorMessage = `❌ ${result.message}`;
-        }
-
-        await DiscordRequest(`webhooks/${process.env.APP_ID}/${req.body.token}/messages/@original`, {
-          method: 'PATCH',
-          body: {
-            content: errorMessage,
-            flags: 64
-          }
-        });
-        return;
-      }
-
-      // Success
-      const embed = new EmbedBuilder()
-        .setColor(0x57F287)
-        .setTitle('✅ Registration Successful')
-        .setDescription(result.message)
-        .addFields(
-          { name: 'In-Game Name', value: result.data.ign, inline: true },
-          { name: 'Type', value: registerType.toUpperCase(), inline: true },
-          { name: 'Region', value: region.toUpperCase(), inline: true }
-        )
-        .setTimestamp();
-
-      if (result.data.guild) {
-        embed.addFields({ name: 'Guild', value: result.data.guild, inline: true });
-      }
-
-      if (result.data.alliance) {
-        embed.addFields({ name: 'Alliance', value: result.data.alliance, inline: true });
-      }
-
-      if (result.data.roleAssigned) {
-        embed.addFields({ name: 'Role', value: `✅ ${result.data.roleName || 'Assigned'}`, inline: true });
-      } else if (result.data.roleWarning) {
-        embed.addFields({ name: 'Role', value: `⚠️ ${result.data.roleWarning}`, inline: false });
-      }
-
-      if (result.data.nicknameApplied) {
-        embed.addFields({ name: 'Nickname', value: `✅ ${result.data.nickname}`, inline: false });
-      } else if (result.data.nicknameWarning) {
-        embed.addFields({ name: 'Nickname', value: `⚠️ ${result.data.nicknameWarning}`, inline: false });
-      }
-
       await DiscordRequest(`webhooks/${process.env.APP_ID}/${req.body.token}/messages/@original`, {
         method: 'PATCH',
-        body: {
-          embeds: [embed.toJSON()],
-          flags: 64
-        }
+        body: buildRegistrationResponse(result, { userId, region, registerType, ign, playerId })
       });
 
     } catch (error) {

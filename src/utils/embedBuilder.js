@@ -39,7 +39,7 @@ export function buildHelpEmbed(member, guildId, isSlashCommand = false) {
   description += `• \`/info <playername>\` - Search for an Albion player\n`;
   description += `• \`/bank balance [@user]\` or \`${prefix}bal [@user]\` - Check balance\n`;
   description += `• \`/bank active\` or \`${prefix}bank active\` - List all bank users\n`;
-  description += `• \`/register region:asia type:alliance name:<ign>\` or \`${prefix}register asia alliance <ign>\` - Register as alliance member (uses configured roles/nickname)\n`;
+  description += `• \`/register\` (guided panel) or \`/register region:asia type:alliance name:<ign>\` or \`${prefix}register asia alliance <ign>\` - Register as alliance member (uses configured roles/nickname)\n`;
   description += `• \`/unregister\` or \`${prefix}unregister\` - Unregister your character\n`;
   description += `• \`/config view\` or \`${prefix}config\` - View guild verification settings\n`;
   description += `• In content threads: \`x [role]\` - Claim a role (tank, heal, etc.)\n`;
@@ -140,7 +140,7 @@ export function buildPaginatedHelpEmbeds(member, guildId, isSlashCommand = false
       `• \`/bank balance [@user]\` or \`${prefix}bal [@user]\` - Check bank balance\n` +
       `• \`/bank active\` or \`${prefix}bank active\` - List all bank users\n\n` +
       `**🎮 Albion Guild Verification:**\n` +
-      `• \`/register region:asia type:alliance name:<ign>\` or \`${prefix}register asia alliance <ign>\`\n` +
+      `• \`/register\` (guided panel) or \`/register region:asia type:alliance name:<ign>\` or \`${prefix}register asia alliance <ign>\`\n` +
       `  Register your Albion character as an alliance member\n` +
       `  Applies configured alliance roles and nickname format when enabled\n` +
       `• \`/unregister\` or \`${prefix}unregister\`\n` +

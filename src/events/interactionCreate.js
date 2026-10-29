@@ -7,6 +7,10 @@ import {
 } from '../systems/ticket/ticket-system.js';
 import { buildPaginatedHelpEmbeds, buildHelpNavigationButtons } from '../utils/embedBuilder.js';
 import { registerUser } from '../systems/albion/albion.js';
+import {
+  REGISTER_REGION_PREFIX, REGISTER_TYPE_PREFIX, REGISTER_MODAL_PREFIX, REGISTER_IGN_FIELD,
+  buildRegionPanel, buildTypePanel, buildIgnModal, buildRegistrationResponse, isValidRegion
+} from '../systems/albion/register-ui.js';
 import { EmbedBuilder } from 'discord.js';
 import { buildContentEmbed, buildContentComponents, buildMethodSelector, buildPresetNondpsMessage, buildPresetDpsMessage, buildCustomRoleModal, buildContinueToDetailsButton, buildContentDetailsModal, buildContentPreviewEmbed, buildPreviewComponents, buildDuplicatesStep, autoAssignFillPlayers, getRoleDisplayName, getBaseKey, ROLE_MAP } from '../services/contentService.js';
 import { contentState, pendingCreations } from '../config/contentState.js';
@@ -338,6 +342,27 @@ export async function handleButtonInteractions(req, res, client) {
     return;
   }
 
+  // Guided /register flow: region -> join type -> IGN modal
+  if (componentId === 'albreg_back') {
+    return res.send({ type: InteractionResponseType.UPDATE_MESSAGE, data: buildRegionPanel() });
+  }
+
+  if (componentId.startsWith(REGISTER_REGION_PREFIX)) {
+    const region = componentId.slice(REGISTER_REGION_PREFIX.length);
+    if (!isValidRegion(region)) {
+      return res.status(400).json({ error: 'invalid region' });
+    }
+    return res.send({ type: InteractionResponseType.UPDATE_MESSAGE, data: buildTypePanel(region) });
+  }
+
+  if (componentId.startsWith(REGISTER_TYPE_PREFIX)) {
+    const [region, registerType] = componentId.slice(REGISTER_TYPE_PREFIX.length).split('_');
+    if (!isValidRegion(region) || !['guild', 'alliance'].includes(registerType)) {
+      return res.status(400).json({ error: 'invalid registration choice' });
+    }
+    return res.send({ type: 9, data: buildIgnModal(region, registerType).toJSON() });
+  }
+
   // Albion registration button handler
   if (componentId.startsWith('albion_register_')) {
     console.log('🎮 Albion registration button clicked');
@@ -371,56 +396,9 @@ export async function handleButtonInteractions(req, res, client) {
       const guild = client.guilds.cache.get(req.body.guild_id);
       const result = await registerUser(guild, requestUserId, region, null, playerId, registerType);
 
-      if (!result.success) {
-        await DiscordRequest(`webhooks/${process.env.APP_ID}/${req.body.token}/messages/@original`, {
-          method: 'PATCH',
-          body: {
-            content: `❌ Registration failed: ${result.message}`,
-            flags: 64
-          }
-        });
-        return;
-      }
-
-      // Success
-      const embed = new EmbedBuilder()
-        .setColor(0x57F287)
-        .setTitle('✅ Registration Successful')
-        .setDescription(result.message)
-        .addFields(
-          { name: 'In-Game Name', value: result.data.ign, inline: true },
-          { name: 'Type', value: (result.data.registerType || registerType).toUpperCase(), inline: true },
-          { name: 'Region', value: region.toUpperCase(), inline: true }
-        )
-        .setTimestamp();
-
-      if (result.data.guild) {
-        embed.addFields({ name: 'Guild', value: result.data.guild, inline: true });
-      }
-
-      if (result.data.alliance) {
-        embed.addFields({ name: 'Alliance', value: result.data.alliance, inline: true });
-      }
-
-      if (result.data.roleAssigned) {
-        embed.addFields({ name: 'Role', value: `✅ ${result.data.roleName || 'Assigned'}`, inline: true });
-      } else if (result.data.roleWarning) {
-        embed.addFields({ name: 'Role', value: `⚠️ ${result.data.roleWarning}`, inline: false });
-      }
-
-      if (result.data.nicknameApplied) {
-        embed.addFields({ name: 'Nickname', value: `✅ ${result.data.nickname}`, inline: false });
-      } else if (result.data.nicknameWarning) {
-        embed.addFields({ name: 'Nickname', value: `⚠️ ${result.data.nicknameWarning}`, inline: false });
-      }
-
       await DiscordRequest(`webhooks/${process.env.APP_ID}/${req.body.token}/messages/@original`, {
         method: 'PATCH',
-        body: {
-          embeds: [embed.toJSON()],
-          components: [], // Remove buttons
-          flags: 64
-        }
+        body: buildRegistrationResponse(result, { userId: requestUserId, region, registerType, playerId })
       });
 
     } catch (error) {
@@ -698,6 +676,44 @@ export async function handleModalSubmit(req, res, client) {
         components: buildPreviewComponents().map(r => r.toJSON()),
       },
     });
+  }
+
+  // ── Guided /register: IGN modal submitted ──────────────────────────────────
+  if (customId.startsWith(REGISTER_MODAL_PREFIX)) {
+    const [region, registerType] = customId.slice(REGISTER_MODAL_PREFIX.length).split('_');
+    const ign = modalComponents
+      .flatMap(row => row.components)
+      .find(c => c.custom_id === REGISTER_IGN_FIELD)?.value?.trim();
+
+    if (!isValidRegion(region) || !['guild', 'alliance'].includes(registerType) || !ign) {
+      return res.send({
+        type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+        data: { content: '❌ Invalid registration details. Use `/register` to start again.', flags: 64 },
+      });
+    }
+
+    // Replace the panel this modal was opened from with the result
+    res.send({ type: InteractionResponseType.DEFERRED_UPDATE_MESSAGE });
+
+    let body;
+    try {
+      const guild = client.guilds.cache.get(req.body.guild_id);
+      if (!guild) {
+        body = { content: '❌ Failed to fetch guild information.', embeds: [], components: [], flags: 64 };
+      } else {
+        const result = await registerUser(guild, userId, region, ign, null, registerType);
+        body = buildRegistrationResponse(result, { userId, region, registerType, ign });
+      }
+    } catch (error) {
+      console.error('Error in guided /register modal:', error);
+      body = { content: '❌ An unexpected error occurred during registration.', embeds: [], components: [], flags: 64 };
+    }
+
+    await DiscordRequest(`webhooks/${process.env.APP_ID}/${req.body.token}/messages/@original`, {
+      method: 'PATCH',
+      body
+    });
+    return;
   }
 
   return res.status(400).json({ error: 'unknown modal' });

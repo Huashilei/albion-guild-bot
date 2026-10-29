@@ -178,6 +178,25 @@ async function assignRoleByType(guild, discordId, registerType, config) {
     return { success: true, assigned: false, roleName: null };
   }
 
+  // Check the usual causes up front so the user gets an actionable message
+  // instead of a generic failure.
+  const botMember = guild.members.me;
+  if (!botMember?.permissions.has('ManageRoles')) {
+    return { success: true, assigned: false, warning: 'The bot is missing the **Manage Roles** permission. Ask an admin to grant it.' };
+  }
+  for (const roleId of targetRoleIds) {
+    const role = guild.roles.cache.get(roleId);
+    if (!role) {
+      return { success: true, assigned: false, warning: 'The configured role no longer exists. An admin needs to set it again with `/set register-role`.' };
+    }
+    if (role.managed || role.id === guild.id) {
+      return { success: true, assigned: false, warning: `**${role.name}** is a managed/@everyone role and cannot be assigned. An admin needs to pick a different role.` };
+    }
+    if (role.position >= botMember.roles.highest.position) {
+      return { success: true, assigned: false, warning: `The bot's role must be **above** **${role.name}**. An admin needs to move the bot's role higher in Server Settings → Roles.` };
+    }
+  }
+
   try {
     const member = await guild.members.fetch(discordId);
     if (!member) {
@@ -196,8 +215,8 @@ async function assignRoleByType(guild, discordId, registerType, config) {
       roleName: resolvedRoleNames.length > 0 ? resolvedRoleNames.join(', ') : (registerType === 'alliance' ? DEFAULT_ALLIANCE_ROLE_NAME : 'Registered Member')
     };
   } catch (error) {
-    console.error('Error assigning role:', error);
-    return { success: true, assigned: false, warning: 'Failed to assign one or more configured roles.' };
+    console.error(`Error assigning role (Discord code ${error.code ?? 'n/a'}):`, error);
+    return { success: true, assigned: false, warning: `Failed to assign one or more configured roles (${error.message || 'unknown error'}).` };
   }
 }
 
