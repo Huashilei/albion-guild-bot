@@ -1746,7 +1746,7 @@ export async function handleSlashCommands(req, res, client) {
 
     // Support both legacy (ign) and new (name) option names.
     const ignOption = options.find(opt => opt.name === 'name') || options.find(opt => opt.name === 'ign');
-    const playerIdOption = req.body.data.options.find(opt => opt.name === 'playerid');
+    const playerIdOption = options.find(opt => opt.name === 'playerid');
 
     const ign = ignOption?.value || null;
     const playerId = playerIdOption?.value || null;
