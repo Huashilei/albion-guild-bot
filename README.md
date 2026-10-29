@@ -1,4 +1,4 @@
-# SouthPH Bot - Albion Online Discord Bot
+# Minokawa - Albion Online Discord Bot
 
 A Discord bot for Albion Online guilds featuring automatic guild/alliance verification, a virtual bank economy, content (group activity) callouts, regear threads, and an application ticket system.
 
@@ -38,6 +38,7 @@ Copy `.env.Example` to `.env` and fill in real values - **never commit `.env`** 
 | `DISCORD_TOKEN` | Yes | Your bot's token (Bot tab in the Developer Portal) |
 | `PUBLIC_KEY` | Yes | Your application's public key, used to verify incoming interaction requests |
 | `DATA_DIR` | No | Where per-guild JSON data is stored. Defaults to `/home/container/data` (matches the Pelican egg layout). Set this to a local path (e.g. `./data`) for local development |
+| `BOT_NAME` | No | Display name shown in help embeds and footers. Defaults to `Minokawa`. Set this to rebrand the bot per deployment (white-label) |
 | `PORT` | No | Port the Express server listens on for the `/interactions` webhook. Defaults to `3000` |
 
 ### 3. Register slash commands
@@ -198,7 +199,7 @@ The prefix form mirrors the slash form 1:1 - `/ticket <subcommand>` <-> `!ticket
 
 The old flat command names (`!ticketsetup`, `!ticketpanels`, `!ticketdelete`, `!ticketstats`, `!tickethealth`, `!applypanel`) still work as aliases.
 
-Example panel setup: `!ticket setup apply "Apply" 123456789012345678 987654321098765432 111111111111111111,222222222222222222 333333333333333333 444444444444444444 "SOUTH | {username}"` (staff role IDs are comma-separated, no spaces; quoted values may contain spaces).
+Example panel setup: `!ticket setup apply "Apply" 123456789012345678 987654321098765432 111111111111111111,222222222222222222 333333333333333333 444444444444444444 "{username}"` (staff role IDs are comma-separated, no spaces; quoted values may contain spaces).
 
 `/ticket reset` / `!ticket reset` **permanently deletes all tickets and transcripts for the server** - both now require explicit confirmation (`confirm:true` / `confirm`), matching `/purge`'s pattern.
 

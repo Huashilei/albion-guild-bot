@@ -1,8 +1,8 @@
 {
-  "name": "southph-bot-app",
+  "name": "minokawa-bot",
   "private": true,
   "version": "1.0.0",
-  "description": "SouthPH Bot Application",
+  "description": "Minokawa Bot Application",
   "main": "app.js",
   "type": "module",
   "engines": {

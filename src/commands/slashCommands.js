@@ -884,7 +884,7 @@ export async function handleSlashCommands(req, res, client) {
       const staffRoleIds = options.find(o => o.name === 'staff_roles').value.split(',').map(id => id.trim());
       const approveRoleId = options.find(o => o.name === 'approve_role')?.value || pingRoleId;
       const transcriptChannelId = options.find(o => o.name === 'transcript_channel').value;
-      const nicknameFormat = options.find(o => o.name === 'nickname_format')?.value || 'SOUTH | {username}';
+      const nicknameFormat = options.find(o => o.name === 'nickname_format')?.value || '{username}';
 
       try {
         const forumChannel = await client.channels.fetch(ticketCategoryId).catch(() => null);

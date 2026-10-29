@@ -11,5 +11,8 @@ export const CUSTOM_EMOJIS = {
   DPS: '<:DPS:1388541739815669792>',
 };
 
+// Display name used in embeds (white-label: override per deployment)
+export const BOT_NAME = process.env.BOT_NAME || 'Minokawa';
+
 // Express server port
 export const PORT = process.env.PORT || 3000;

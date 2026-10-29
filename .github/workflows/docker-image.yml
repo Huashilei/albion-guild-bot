@@ -30,7 +30,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
         with:
-          images: phreyle/southph-bot-app
+          images: phreyle/albion-guild-bot
           tags: |
             type=ref,event=tag
             type=raw,value=pelican-latest,enable={{is_default_branch}}
@@ -48,6 +48,6 @@ jobs:
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@v3
         with:
-          subject-name: index.docker.io/phreyle/southph-bot-app
+          subject-name: index.docker.io/phreyle/albion-guild-bot
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true

@@ -6,7 +6,7 @@ import { handleTicketMessage } from '../systems/ticket/ticket-system.js';
 import { handlePrefixCommands } from '../commands/prefixCommands.js';
 
 // Splits prefix-command text on whitespace, treating a "double quoted phrase"
-// as one token (e.g. `!ticketsetup apply "Apply" ... "SOUTH | {username}"`).
+// as one token (e.g. `!ticketsetup apply "Apply" ... "{username}"`).
 // A plain split(/\s+/) would break the quoted nickname format above into
 // three separate args at each internal space.
 function tokenizeArgs(str) {

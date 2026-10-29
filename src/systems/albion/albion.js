@@ -288,7 +288,7 @@ export async function registerUser(guild, discordId, region, ign, playerId = nul
       };
     }
 
-    // Look up South PH's *current* alliance live, rather than a static config
+    // Look up the guild's *current* alliance live, rather than a static config
     // value, so this automatically follows if the guild ever switches alliances.
     const homeGuildInfo = await fetchGuildInfo(config.albionRegion, config.albionGuildName);
     if (!homeGuildInfo.success) {
@@ -430,7 +430,7 @@ export async function registerUser(guild, discordId, region, ign, playerId = nul
 /**
  * Purge users by registration type.
  * For alliance registrations this re-verifies each currently role-holding
- * member against South PH's *current* alliance (looked up live) and removes
+ * member against the guild's *current* alliance (looked up live) and removes
  * anyone who no longer belongs - mirroring how guild purge already works.
  */
 export async function purgeUsers(guild, registerType = 'guild') {

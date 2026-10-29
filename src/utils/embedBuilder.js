@@ -1,6 +1,7 @@
 import { EmbedBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { loadPrefix } from '../database/guildData.js';
 import { hasPermission, hasPermissionSlash } from './permissions.js';
+import { BOT_NAME } from '../config/constants.js';
 
 // Build help embed based on user permissions
 export function buildHelpEmbed(member, guildId, isSlashCommand = false) {
@@ -25,8 +26,8 @@ export function buildHelpEmbed(member, guildId, isSlashCommand = false) {
 
   const embed = new EmbedBuilder()
     .setColor(0x5865F2)
-    .setTitle('📖 South PH Bot - Command Help')
-    .setFooter({ text: 'South PH - Albion Online Guild Bot' })
+    .setTitle(`📖 ${BOT_NAME} - Command Help`)
+    .setFooter({ text: `${BOT_NAME} - Albion Online Guild Bot` })
     .setTimestamp();
 
   let description = `**Current Prefix:** \`${prefix}\`\n\n`;
@@ -129,7 +130,7 @@ export function buildPaginatedHelpEmbeds(member, guildId, isSlashCommand = false
   // Page 1: User Commands
   const page1 = new EmbedBuilder()
     .setColor(0x5865F2)
-    .setTitle('📖 South PH Bot - Command Help (Page 1)')
+    .setTitle(`📖 ${BOT_NAME} - Command Help (Page 1)`)
     .setDescription(
       `**Current Prefix:** \`${prefix}\`\n\n` +
       `**👤 User Commands** (Available to All Members):\n` +
@@ -149,7 +150,7 @@ export function buildPaginatedHelpEmbeds(member, guildId, isSlashCommand = false
       `• \`x fill\` - Sign up to fill any available slot\n` +
       `• \`x cancel\` - Remove yourself from content\n`
     )
-    .setFooter({ text: 'South PH - Albion Online Guild Bot' })
+    .setFooter({ text: `${BOT_NAME} - Albion Online Guild Bot` })
     .setTimestamp();
   pages.push(page1);
 
@@ -190,9 +191,9 @@ export function buildPaginatedHelpEmbeds(member, guildId, isSlashCommand = false
   if (page2Desc) {
     const page2 = new EmbedBuilder()
       .setColor(0x5865F2)
-      .setTitle('📖 South PH Bot - Command Help (Page 2)')
+      .setTitle(`📖 ${BOT_NAME} - Command Help (Page 2)`)
       .setDescription(page2Desc)
-      .setFooter({ text: 'South PH - Albion Online Guild Bot' })
+      .setFooter({ text: `${BOT_NAME} - Albion Online Guild Bot` })
       .setTimestamp();
     pages.push(page2);
   }
@@ -201,7 +202,7 @@ export function buildPaginatedHelpEmbeds(member, guildId, isSlashCommand = false
   if (isAdmin) {
     const page3 = new EmbedBuilder()
       .setColor(0x5865F2)
-      .setTitle('📖 South PH Bot - Command Help (Page 3)')
+      .setTitle(`📖 ${BOT_NAME} - Command Help (Page 3)`)
       .setDescription(
         `**🎮 Albion Guild Verification (Admin)**:\n` +
         `• \`/set guild <region> <guild_name>\` or \`${prefix}set guild <region> <guild_name>\`\n` +
@@ -209,7 +210,7 @@ export function buildPaginatedHelpEmbeds(member, guildId, isSlashCommand = false
         `• \`/set register-role @role\` or \`${prefix}set register-role @role\`\n` +
         `  Set the role assigned to verified members\n` +
         `• \`/set guild-tag <tag>\` or \`${prefix}set guild-tag <tag>\`\n` +
-        `  Set guild tag for nicknames (e.g., SOUTH)\n` +
+        `  Set guild tag for nicknames (e.g., MINO)\n` +
         `• \`/set nickname-format <format>\` or \`${prefix}set nickname-format <format>\`\n` +
         `  Set nickname format ({ign}, {tag}, {guild}, {region})\n` +
         `• \`/config view\` or \`${prefix}config\`\n` +
@@ -221,14 +222,14 @@ export function buildPaginatedHelpEmbeds(member, guildId, isSlashCommand = false
         `• \`/purge type:guild confirm:true\` or \`${prefix}purge confirm\`\n` +
         `  Remove users no longer in the guild (checks Albion API)\n`
       )
-      .setFooter({ text: 'South PH - Albion Online Guild Bot' })
+      .setFooter({ text: `${BOT_NAME} - Albion Online Guild Bot` })
       .setTimestamp();
     pages.push(page3);
 
     // Page 4: Admin Content & Ticket Commands
     const page4 = new EmbedBuilder()
       .setColor(0x5865F2)
-      .setTitle('📖 South PH Bot - Command Help (Page 4)')
+      .setTitle(`📖 ${BOT_NAME} - Command Help (Page 4)`)
       .setDescription(
         `**🎫 Ticket Commands** (Administrator Only):\n` +
         `• \`/ticket setup\`\n` +
@@ -254,14 +255,14 @@ export function buildPaginatedHelpEmbeds(member, guildId, isSlashCommand = false
         `• \`${prefix}prefix <new>\`\n` +
         `  Change bot prefix\n`
       )
-      .setFooter({ text: 'South PH - Albion Online Guild Bot' })
+      .setFooter({ text: `${BOT_NAME} - Albion Online Guild Bot` })
       .setTimestamp();
     pages.push(page4);
   } else {
     // For non-admin, adjust page numbers
     pages.forEach((page, index) => {
       const totalPages = pages.length;
-      page.setTitle(`📖 South PH Bot - Command Help (Page ${index + 1}/${totalPages})`);
+      page.setTitle(`📖 ${BOT_NAME} - Command Help (Page ${index + 1}/${totalPages})`);
     });
   }
 

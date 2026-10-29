@@ -1,9 +1,9 @@
 # Based on Pelican yolk conventions (container user + tini)
 FROM --platform=$TARGETOS/$TARGETARCH node:20-bookworm-slim
 
-LABEL org.opencontainers.image.title="southph-bot-app" \
+LABEL org.opencontainers.image.title="albion-guild-bot" \
       org.opencontainers.image.description="Discord bot container for Pelican" \
-      org.opencontainers.image.source="https://hub.docker.com/r/phreyle/southph-bot-app"
+      org.opencontainers.image.source="https://hub.docker.com/r/phreyle/albion-guild-bot"
 
 # Create the "container" user Pelican expects + install tini for signal handling
 RUN useradd -m -d /home/container container \

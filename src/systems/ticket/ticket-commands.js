@@ -20,7 +20,7 @@ export async function setupTicketPanel(message, args) {
   if (args.length < 7) {
     return message.reply(
       '❌ Usage: `!ticketsetup <panelId> <ticketType> <forumChannelId> <pingRoleId> <staffRoleIds> <approveRoleId> <transcriptChannelId> [nicknameFormat] [albionGuild] [albionRegion]`\n' +
-      'Example: `!ticketsetup apply "Apply" 123456 789012 345678,901234 567890 111213 "SOUTH | {username}" "South PH" "Asia"`\n' +
+      'Example: `!ticketsetup apply "Apply" 123456 789012 345678,901234 567890 111213 "{username}" "My Guild" "Asia"`\n' +
       'Note: forumChannelId must be your Forum channel where application posts will be created\n' +
       'Note: staffRoleIds should be comma-separated (no spaces)\n' +
       'Albion regions: Americas, Europe, Asia'
@@ -34,7 +34,7 @@ export async function setupTicketPanel(message, args) {
   const staffRoleIds = args[4].split(',').map(id => id.trim()).filter(Boolean);
   const approveRoleId = args[5];
   const transcriptChannelId = args[6];
-  const nicknameFormat = args[7] ? args[7].replace(/"/g, '') : 'SOUTH | {username}';
+  const nicknameFormat = args[7] ? args[7].replace(/"/g, '') : '{username}';
   const requiredAlbionGuild = args[8] ? args[8].replace(/"/g, '') : null;
   const albionRegion = args[9] ? args[9].replace(/"/g, '') : null;
 
