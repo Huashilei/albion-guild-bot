@@ -1,8 +1,8 @@
 {
-  "name": "minokawa-bot",
+  "name": "albion-guild-bot",
   "private": true,
   "version": "1.0.0",
-  "description": "Minokawa Bot Application",
+  "description": "White-label Albion Online guild tools Discord bot",
   "main": "app.js",
   "type": "module",
   "engines": {

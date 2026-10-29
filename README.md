@@ -1,6 +1,6 @@
-# Minokawa - Albion Online Discord Bot
+# Albion-Guild-Bot - Albion Online Guild Tools for Discord
 
-A Discord bot for Albion Online guilds featuring automatic guild/alliance verification, a virtual bank economy, content (group activity) callouts, regear threads, and an application ticket system.
+A white-label Discord bot of guild tools for Albion Online, featuring automatic guild/alliance verification, a virtual bank economy, content (group activity) callouts, regear threads, and an application ticket system.
 
 ---
 
@@ -38,7 +38,7 @@ Copy `.env.Example` to `.env` and fill in real values - **never commit `.env`** 
 | `DISCORD_TOKEN` | Yes | Your bot's token (Bot tab in the Developer Portal) |
 | `PUBLIC_KEY` | Yes | Your application's public key, used to verify incoming interaction requests |
 | `DATA_DIR` | No | Where per-guild JSON data is stored. Defaults to `/home/container/data` (matches the Pelican egg layout). Set this to a local path (e.g. `./data`) for local development |
-| `BOT_NAME` | No | Display name shown in help embeds and footers. Defaults to `Minokawa`. Set this to rebrand the bot per deployment (white-label) |
+| `BOT_NAME` | No | Display name shown in help embeds and footers. Defaults to `Minokawa`. Set this to your own guild or bot name - the bot is white-label, so no code changes are needed to rebrand it |
 | `PORT` | No | Port the Express server listens on for the `/interactions` webhook. Defaults to `3000` |
 
 ### 3. Register slash commands
@@ -68,7 +68,7 @@ npm run dev      # local dev, auto-restarts on change (nodemon)
 
 ### Docker / Pelican deployment
 
-`Dockerfile.pelican` is the image actually built and pushed by CI (`.github/workflows/docker-image.yml`, tagged `pelican-latest` on Docker Hub) - it follows Pelican's `container` user + `tini` conventions and expects the app's persistent data volume mounted at whatever `DATA_DIR` resolves to (defaults to `/home/container/data`).
+`Dockerfile.pelican` is the image actually built and pushed by CI (`.github/workflows/docker-image.yml`, published as `<dockerhub-user>/albion-guild-bot:pelican-latest` on Docker Hub; set `DOCKER_USERNAME` / `DOCKER_PASSWORD` repo secrets and update the image name in the workflow if you fork it) - it follows Pelican's `container` user + `tini` conventions and expects the app's persistent data volume mounted at whatever `DATA_DIR` resolves to (defaults to `/home/container/data`).
 
 Pushing to `main` only builds and publishes a new image - it does **not** auto-restart the running Pelican server. Pull the new image and restart the container manually (or via Pelican's own auto-update settings) to actually deploy a change.
 
