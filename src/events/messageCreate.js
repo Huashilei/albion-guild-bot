@@ -22,6 +22,8 @@ function tokenizeArgs(str) {
 export async function handleMessageCreate(message, client) {
   // Ignore bot messages
   if (message.author.bot) return;
+  // Prefix commands and ticket logging are server-only; DMs have no guild
+  if (!message.guild) return;
 
   const prefix = loadPrefix(message.guild.id).prefix;
 

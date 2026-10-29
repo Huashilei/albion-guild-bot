@@ -883,29 +883,26 @@ export async function handlePrefixCommands(message, command, args, prefix) {
 
   // !register command - Register user's Albion character
   if (command === 'register' || command === 'reg') {
-    const region = args[0]?.toLowerCase();
-    const maybeType = args[1]?.toLowerCase();
-    const hasExplicitType = ['alliance', 'guild'].includes(maybeType);
-    const registerType = hasExplicitType ? maybeType : 'guild';
-    const ign = hasExplicitType ? args.slice(2).join(' ') : args.slice(1).join(' ');
+    // The region comes from /set guild. A leading region word from the old
+    // syntax (!register asia alliance <ign>) is still accepted and ignored.
+    const regionArgs = ['americas', 'europe', 'asia'];
+    const rest = regionArgs.includes(args[0]?.toLowerCase()) ? args.slice(1) : args;
+    const hasExplicitType = ['alliance', 'guild'].includes(rest[0]?.toLowerCase());
+    const registerType = hasExplicitType ? rest[0].toLowerCase() : 'guild';
+    const ign = (hasExplicitType ? rest.slice(1) : rest).join(' ');
+    const region = loadAlbionConfig(message.guild.id).albionRegion;
 
-    if (!region || !ign) {
+    if (!ign) {
       await message.reply(
-        `❌ Usage: \`${prefix}register <region> <ign>\` (defaults to Guild)\n` +
-        `or \`${prefix}register <region> <alliance|guild> <ign>\`\n` +
-        `**Regions:** americas, europe, asia\n` +
-        `**Examples:** \`${prefix}register americas MyCharName\`, \`${prefix}register asia alliance MyCharName\``
+        `❌ Usage: \`${prefix}register <ign>\` (defaults to Guild)\n` +
+        `or \`${prefix}register <alliance|guild> <ign>\`\n` +
+        `**Examples:** \`${prefix}register MyCharName\`, \`${prefix}register alliance MyCharName\``
       );
       return;
     }
 
-    if (!['americas', 'europe', 'asia'].includes(region)) {
-      await message.reply('❌ Invalid region. Valid regions: americas, europe, asia');
-      return;
-    }
-
-    if (registerType === 'alliance' && region !== 'asia') {
-      await message.reply('❌ Alliance registration currently supports only the Asia region. Use: `!register asia alliance <name>`');
+    if (!region) {
+      await message.reply('❌ Registration is not set up on this server yet. Ask an admin to run `/set guild`.');
       return;
     }
 
@@ -922,7 +919,7 @@ export async function handlePrefixCommands(message, command, args, prefix) {
             const guildInfo = player.GuildName ? `Guild: ${player.GuildName}` : 'Guild: None';
             matchesList += `${index + 1}. **${player.Name}** (Player ID: ${player.Id})\n   ${guildInfo}\n\n`;
           });
-          matchesList += `To register using Player ID, use the slash command:\n\`/register region:${region} type:${registerType} playerid:PLAYER_ID\``;
+          matchesList += 'Several characters share that name. Use the **Register** button on the member hub (or `/register`) and pick yours from the list.';
           
           await loadingMsg.edit(matchesList);
           return;

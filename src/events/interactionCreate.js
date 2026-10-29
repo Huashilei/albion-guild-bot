@@ -9,9 +9,13 @@ import { buildPaginatedHelpEmbeds, buildHelpNavigationButtons } from '../utils/e
 import { registerUser } from '../systems/albion/albion.js';
 import { loadAlbionConfig } from '../systems/albion/albion-db.js';
 import {
-  REGISTER_REGION_PREFIX, REGISTER_TYPE_PREFIX, REGISTER_MODAL_PREFIX, REGISTER_IGN_FIELD,
-  buildRegionPanel, buildTypePanel, buildIgnModal, buildRegistrationResponse, isValidRegion
+  REGISTER_TYPE_PREFIX, REGISTER_MODAL_PREFIX, REGISTER_IGN_FIELD,
+  buildTypePanel, buildIgnModal, buildRegistrationResponse, isValidRegisterType
 } from '../systems/albion/register-ui.js';
+import {
+  HUB_REGISTER, HUB_UNREGISTER, HUB_BALANCE, HUB_HELP,
+  buildBalanceBody, buildUnregisterBody
+} from '../systems/hub/member-hub.js';
 import { EmbedBuilder } from 'discord.js';
 import { buildContentEmbed, buildContentComponents, buildMethodSelector, buildPresetNondpsMessage, buildPresetDpsMessage, buildCustomRoleModal, buildContinueToDetailsButton, buildContentDetailsModal, buildContentPreviewEmbed, buildPreviewComponents, buildDuplicatesStep, autoAssignFillPlayers, getRoleDisplayName, getBaseKey, ROLE_MAP } from '../services/contentService.js';
 import { contentState, pendingCreations } from '../config/contentState.js';
@@ -246,10 +250,8 @@ export async function handleButtonInteractions(req, res, client) {
       });
     }
 
-    res.send({
-      type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
-      data: { flags: 64 },
-    });
+    // Replace the preview (and its Publish/Edit buttons) with the result
+    res.send({ type: InteractionResponseType.DEFERRED_UPDATE_MESSAGE });
 
     try {
       contentState.active = true;
@@ -287,14 +289,14 @@ export async function handleButtonInteractions(req, res, client) {
 
       await DiscordRequest(`webhooks/${process.env.APP_ID}/${req.body.token}/messages/@original`, {
         method: 'PATCH',
-        body: { content: `✅ Content callout published: **${pending.title}**`, flags: 64 },
+        body: { content: `✅ Content callout published: **${pending.title}**`, embeds: [], components: [], flags: 64 },
       });
     } catch (err) {
       console.error('❌ Error publishing content (express):', err);
       contentState.active = false;
       await DiscordRequest(`webhooks/${process.env.APP_ID}/${req.body.token}/messages/@original`, {
         method: 'PATCH',
-        body: { content: '❌ Failed to create content thread. Please try again.', flags: 64 },
+        body: { content: '❌ Failed to create content thread. Please try again.', embeds: [], components: [], flags: 64 },
       });
     }
     return;
@@ -344,25 +346,63 @@ export async function handleButtonInteractions(req, res, client) {
     return;
   }
 
-  // Guided /register flow: region -> join type -> IGN modal
-  if (componentId === 'albreg_back') {
-    return res.send({ type: InteractionResponseType.UPDATE_MESSAGE, data: buildRegionPanel() });
+  // ── Member hub buttons (public panel posted by /panel) ───────────────────
+  if (componentId === HUB_REGISTER) {
+    return res.send({
+      type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+      data: { ...buildTypePanel(loadAlbionConfig(req.body.guild_id)), flags: 64 },
+    });
   }
 
-  if (componentId.startsWith(REGISTER_REGION_PREFIX)) {
-    const region = componentId.slice(REGISTER_REGION_PREFIX.length);
-    if (!isValidRegion(region)) {
-      return res.status(400).json({ error: 'invalid region' });
+  if (componentId === HUB_BALANCE) {
+    return res.send({
+      type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+      data: buildBalanceBody(req.body.guild_id, userId),
+    });
+  }
+
+  if (componentId === HUB_HELP) {
+    const pages = buildPaginatedHelpEmbeds(req.body.member, req.body.guild_id, true);
+    return res.send({
+      type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+      data: {
+        embeds: [pages[0].toJSON()],
+        components: pages.length > 1 ? [buildHelpNavigationButtons(0, pages.length).toJSON()] : [],
+        flags: 64,
+      },
+    });
+  }
+
+  if (componentId === HUB_UNREGISTER) {
+    res.send({
+      type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
+      data: { flags: 64 },
+    });
+
+    let body;
+    try {
+      const guild = client.guilds.cache.get(req.body.guild_id);
+      body = guild
+        ? await buildUnregisterBody(guild, userId)
+        : { content: '❌ Failed to fetch guild information.', flags: 64 };
+    } catch (error) {
+      console.error('Error in hub unregister:', error);
+      body = { content: '❌ An unexpected error occurred during unregistration.', flags: 64 };
     }
-    return res.send({ type: InteractionResponseType.UPDATE_MESSAGE, data: buildTypePanel(region) });
+    await DiscordRequest(`webhooks/${process.env.APP_ID}/${req.body.token}/messages/@original`, {
+      method: 'PATCH',
+      body,
+    });
+    return;
   }
 
+  // Guided registration: join type -> IGN modal (region comes from /set guild)
   if (componentId.startsWith(REGISTER_TYPE_PREFIX)) {
-    const [region, registerType] = componentId.slice(REGISTER_TYPE_PREFIX.length).split('_');
-    if (!isValidRegion(region) || !['guild', 'alliance'].includes(registerType)) {
+    const registerType = componentId.slice(REGISTER_TYPE_PREFIX.length);
+    if (!isValidRegisterType(registerType)) {
       return res.status(400).json({ error: 'invalid registration choice' });
     }
-    return res.send({ type: 9, data: buildIgnModal(region, registerType).toJSON() });
+    return res.send({ type: 9, data: buildIgnModal(registerType).toJSON() });
   }
 
   // Albion registration button handler
@@ -388,11 +428,8 @@ export async function handleButtonInteractions(req, res, client) {
       });
     }
 
-    // Defer response
-    res.send({
-      type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE,
-      data: { flags: 64 }
-    });
+    // Replace the "pick your character" message in place instead of leaving it behind
+    res.send({ type: InteractionResponseType.DEFERRED_UPDATE_MESSAGE });
 
     try {
       const guild = client.guilds.cache.get(req.body.guild_id);
@@ -409,6 +446,8 @@ export async function handleButtonInteractions(req, res, client) {
         method: 'PATCH',
         body: {
           content: '❌ An unexpected error occurred during registration.',
+          embeds: [],
+          components: [],
           flags: 64
         }
       });
@@ -680,17 +719,18 @@ export async function handleModalSubmit(req, res, client) {
     });
   }
 
-  // ── Guided /register: IGN modal submitted ──────────────────────────────────
+  // ── Guided registration: IGN modal submitted ───────────────────────────────
   if (customId.startsWith(REGISTER_MODAL_PREFIX)) {
-    const [region, registerType] = customId.slice(REGISTER_MODAL_PREFIX.length).split('_');
+    const registerType = customId.slice(REGISTER_MODAL_PREFIX.length);
+    const region = loadAlbionConfig(req.body.guild_id).albionRegion;
     const ign = modalComponents
       .flatMap(row => row.components)
       .find(c => c.custom_id === REGISTER_IGN_FIELD)?.value?.trim();
 
-    if (!isValidRegion(region) || !['guild', 'alliance'].includes(registerType) || !ign) {
+    if (!isValidRegisterType(registerType) || !region || !ign) {
       return res.send({
         type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-        data: { content: '❌ Invalid registration details. Use `/register` to start again.', flags: 64 },
+        data: { content: '❌ Invalid registration details. Click **Register** to start again.', flags: 64 },
       });
     }
 

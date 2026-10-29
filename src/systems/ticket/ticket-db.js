@@ -5,8 +5,8 @@
 
 import fs from 'fs/promises';
 import path from 'path';
+import { DATA_DIR } from '../../config/constants.js';
 
-const DATA_DIR = process.env.DATA_DIR || '/home/container/data';
 
 // Write queue per guild to prevent race conditions
 const writeQueues = new Map();

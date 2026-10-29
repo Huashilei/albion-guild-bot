@@ -39,9 +39,8 @@ export function buildHelpEmbed(member, guildId, isSlashCommand = false) {
   description += `• \`/info <playername>\` - Search for an Albion player\n`;
   description += `• \`/bank balance [@user]\` or \`${prefix}bal [@user]\` - Check balance\n`;
   description += `• \`/bank active\` or \`${prefix}bank active\` - List all bank users\n`;
-  description += `• \`/register\` (guided panel) or \`/register region:asia type:alliance name:<ign>\` or \`${prefix}register asia alliance <ign>\` - Register as alliance member (uses configured roles/nickname)\n`;
+  description += `• \`/register\` or the **Register** button on the member hub - guided registration (uses configured roles/nickname)\n`;
   description += `• \`/unregister\` or \`${prefix}unregister\` - Unregister your character\n`;
-  description += `• \`/config view\` or \`${prefix}config\` - View guild verification settings\n`;
   description += `• In content threads: \`x [role]\` - Claim a role (tank, heal, etc.)\n`;
   description += `• In content threads: \`x fill\` - Sign up to fill any slot\n\n`;
 
@@ -64,8 +63,7 @@ export function buildHelpEmbed(member, guildId, isSlashCommand = false) {
   // Content Admin Commands
   if (hasContentPerms || isAdmin) {
     description += `**🎮 Content Admin Commands** ${isAdmin ? '(Administrator)' : '(Authorized Role)'}:\n`;
-    description += `• \`/content create [type] [title] [zone] [tier] [time]\` - Create content callout\n`;
-    description += `• \`/content reset\` - Reset content callout\n`;
+    description += `• \`/content create\` - Create a content callout (guided: size, roles, details)\n`;
     description += `• \`/content adduser @user [role]\` - Add user to content role\n`;
     description += `• \`/content removeuser [role]\` - Remove user from content role\n\n`;
   }
@@ -77,6 +75,8 @@ export function buildHelpEmbed(member, guildId, isSlashCommand = false) {
     description += `• \`/perms list\` or \`${prefix}perms list\` - View role permissions\n`;
     description += `• \`/perms add <bank|cta|content> @role\` - Grant role permission\n`;
     description += `• \`/perms remove <bank|cta|content> @role\` - Revoke role permission\n`;
+    description += `• \`/panel\` - Post the member hub buttons (Register / Unregister / Balance / Help)\n`;
+    description += `• \`/config view\` - View guild verification settings\n`;
     description += `• \`/set guild <region> <guild_name>\` - Configure Albion guild\n`;
     description += `• \`/set register-role @role\` - Set verified member role\n`;
     description += `• \`/set guild-tag <tag>\` - Set guild tag for nicknames\n`;
@@ -84,10 +84,10 @@ export function buildHelpEmbed(member, guildId, isSlashCommand = false) {
     description += `• \`/forceunregister <ign>\` or \`${prefix}forceunregister <ign>\` - Force unregister by IGN\n`;
     description += `• \`/purge type:alliance confirm:true\` or \`${prefix}purge alliance confirm\` - Remove alliance registrations\n`;
     description += `• \`/purge type:guild confirm:true\` or \`${prefix}purge confirm\` - Remove invalid guild registrations\n`;
-    description += `• \`/ticket setup\` - Setup a ticket panel\n`;
-    description += `• \`/ticket list\` - List all ticket panels\n`;
-    description += `• \`/ticket panel [panel_id]\` - Send apply button panel\n`;
-    description += `• \`/ticket delete <panel_id>\` - Delete a ticket panel\n`;
+    description += `• \`/ticket setup\` - Pick forum, staff role, log channel; posts the Apply button\n`;
+    description += `• \`/ticket list\` - Show the application setup\n`;
+    description += `• \`/ticket panel [message]\` - Re-post the Apply button\n`;
+    description += `• \`/ticket delete\` - Remove the application setup\n`;
     description += `• \`/ticket stats\` - View ticket statistics\n`;
     description += `• \`/ticket health\` - Run ticket system health check\n\n`;
   }
@@ -140,9 +140,9 @@ export function buildPaginatedHelpEmbeds(member, guildId, isSlashCommand = false
       `• \`/bank balance [@user]\` or \`${prefix}bal [@user]\` - Check bank balance\n` +
       `• \`/bank active\` or \`${prefix}bank active\` - List all bank users\n\n` +
       `**🎮 Albion Guild Verification:**\n` +
-      `• \`/register\` (guided panel) or \`/register region:asia type:alliance name:<ign>\` or \`${prefix}register asia alliance <ign>\`\n` +
-      `  Register your Albion character as an alliance member\n` +
-      `  Applies configured alliance roles and nickname format when enabled\n` +
+      `• \`/register\` or the **Register** button on the member hub\n` +
+      `  Guided: pick Guild or Alliance, then enter your in-game name\n` +
+      `  Applies configured roles and nickname format\n` +
       `• \`/unregister\` or \`${prefix}unregister\`\n` +
       `  Unregister your character from the system\n\n` +
       `**📝 Content Threads:**\n` +
@@ -178,10 +178,8 @@ export function buildPaginatedHelpEmbeds(member, guildId, isSlashCommand = false
 
   if (hasContentPerms || isAdmin) {
     page2Desc += `**🎮 Content Admin Commands** ${isAdmin ? '(Administrator)' : '(Authorized Role)'}:\n`;
-    page2Desc += `• \`/content create [type] [title] [zone] [tier] [time]\`\n`;
-    page2Desc += `  Create content callout (ROA, CTA, GCAMPS, FF, Tracking, Avadungeon)\n`;
-    page2Desc += `• \`/content reset\`\n`;
-    page2Desc += `  Reset content callout (allows creating a new one)\n`;
+    page2Desc += `• \`/content create\`\n`;
+    page2Desc += `  Create a content callout (guided: size, roles, details)\n`;
     page2Desc += `• \`/content adduser @user [role]\`\n`;
     page2Desc += `  Add user to content role slot\n`;
     page2Desc += `• \`/content removeuser [role]\`\n`;
