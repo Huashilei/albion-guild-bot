@@ -1,5 +1,10 @@
 import 'dotenv/config';
-import { InstallGlobalCommands } from './utils.js';
+import fs from 'fs';
+import path from 'path';
+import crypto from 'crypto';
+import { pathToFileURL } from 'url';
+import { DiscordRequest } from './utils.js';
+import { DATA_DIR } from './src/config/constants.js';
 
 // UTC command for Albion Online in-game time
 const UTC_COMMAND = {
@@ -704,6 +709,46 @@ const TICKET_COMMAND = {
   contexts: [0],
 };
 
-const ALL_COMMANDS = [UTC_COMMAND, INFO_COMMAND, HELP_COMMAND, CONTENT_COMMAND, REGEAR_COMMAND, BANK_COMMAND, PERMS_COMMAND, SET_COMMAND, CONFIG_COMMAND, REGISTER_COMMAND, UNREGISTER_COMMAND, FORCEUNREGISTER_COMMAND, PURGE_COMMAND, REGISTERED_COMMAND, TICKET_COMMAND];
+export const ALL_COMMANDS = [UTC_COMMAND, INFO_COMMAND, HELP_COMMAND, CONTENT_COMMAND, REGEAR_COMMAND, BANK_COMMAND, PERMS_COMMAND, SET_COMMAND, CONFIG_COMMAND, REGISTER_COMMAND, UNREGISTER_COMMAND, FORCEUNREGISTER_COMMAND, PURGE_COMMAND, REGISTERED_COMMAND, TICKET_COMMAND];
 
-InstallGlobalCommands(process.env.APP_ID, ALL_COMMANDS);
+const HASH_FILE = path.join(DATA_DIR, 'commands-hash.json');
+
+/**
+ * Bulk-overwrite the global slash commands. Unless `force` is set, skips the
+ * Discord call when the definitions are unchanged since the last successful
+ * registration (so frequent restarts don't hit command-registration limits).
+ * Throws on failure.
+ */
+export async function registerCommands({ force = false } = {}) {
+  const hash = crypto.createHash('sha256').update(JSON.stringify(ALL_COMMANDS)).digest('hex');
+
+  if (!force) {
+    try {
+      if (JSON.parse(fs.readFileSync(HASH_FILE, 'utf8')).hash === hash) {
+        return { registered: false, count: ALL_COMMANDS.length };
+      }
+    } catch {
+      // No previous hash (or unreadable) - register.
+    }
+  }
+
+  await DiscordRequest(`applications/${process.env.APP_ID}/commands`, { method: 'PUT', body: ALL_COMMANDS });
+
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(HASH_FILE, JSON.stringify({ hash }));
+  } catch (err) {
+    console.warn('⚠️ Could not save command hash (commands will re-register next start):', err.message);
+  }
+  return { registered: true, count: ALL_COMMANDS.length };
+}
+
+// `npm run register` - run directly, always re-register
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  registerCommands({ force: true })
+    .then(({ count }) => console.log(`✅ Registered ${count} slash commands`))
+    .catch((err) => {
+      console.error('❌ Failed to register slash commands:', err);
+      process.exitCode = 1;
+    });
+}

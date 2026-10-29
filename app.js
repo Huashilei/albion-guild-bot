@@ -7,6 +7,7 @@ import { DATA_DIR, PORT } from './src/config/constants.js';
 import { handleMessageCreate } from './src/events/messageCreate.js';
 import { handleButtonInteractions, handleModalSubmit } from './src/events/interactionCreate.js';
 import { handleSlashCommands } from './src/commands/slashCommands.js';
+import { registerCommands } from './commands.js';
 
 // Ensure data directory exists
 if (!fs.existsSync(DATA_DIR)) {
@@ -38,6 +39,11 @@ client.once('clientReady', () => {
 client.once('ready', () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
 });
+
+// Keep Discord's slash commands in sync with commands.js on every start
+registerCommands()
+  .then(({ registered, count }) => console.log(registered ? `✅ Registered ${count} slash commands` : 'Slash commands already up to date'))
+  .catch((err) => console.error('❌ Failed to register slash commands:', err));
 
 // Message create event handler
 client.on('messageCreate', async (message) => {

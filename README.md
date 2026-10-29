@@ -47,7 +47,7 @@ Copy `.env.Example` to `.env` and fill in real values - **never commit `.env`** 
 npm run register
 ```
 
-Run this again any time you add or change a slash command definition in `commands.js`. It can take a few minutes for Discord to propagate command changes.
+The bot also does this **automatically on every start** (skipped when `commands.js` hasn't changed since the last successful registration), so deploying and restarting is enough. Run `npm run register` manually only to force a re-registration. It can take a few minutes for Discord to propagate command changes.
 
 ### 4. Configure the Interactions Endpoint URL
 
