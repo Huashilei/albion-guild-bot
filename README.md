@@ -8,6 +8,7 @@ A white-label Discord bot of guild tools for Albion Online, featuring automatic 
 
 - **Guild Verification** - Automatically verify members are in your Albion guild
 - **Alliance Registration** - Register alliance members with configurable roles and nicknames
+- **Tenure Tiers** - Automatically grant extra roles as members stay registered longer (e.g. Veteran at 30 days, Old at 60)
 - **Virtual Bank** - Track virtual currency for guild activities
 - **Content Management** - Organize group content with role signups
 - **Ticket System** - Application and support tickets
@@ -150,8 +151,14 @@ All writes go through a temp-file-then-rename pattern (`src/utils/atomicFile.js`
 | `/purge type:guild confirm:true` | Re-verify every guild-registered member against the Albion API and remove anyone no longer in the guild (including members who hold the role but were never registered at all) |
 | `/purge type:alliance confirm:true` | Re-verify every alliance-registered member and remove anyone no longer in the guild's current alliance (same manually-assigned-role handling as guild purge) |
 | `/registered [type:all\|guild\|alliance]` (or `!registered [all\|guild\|alliance]`) | List every registered member with their linked Albion IGN, grouped by type |
+| `/registered tenure:true` | List every holder of the register role with days on the server and days since registration, longest first. Discord does not expose role-assignment time, so registration date stands in for it |
+| `/tier add <role> <days> [hours] [replace]` | Grant a role once a member has been registered that long. Thresholds count from registration, so tiers at 30 and 60 days give the second role at day 60. `replace:true` removes lower tier roles. Re-run with the same role to change it |
+| `/tier remove <role>` | Stop granting a tier role (members keep it) |
+| `/tier list` | Show configured tiers |
 
 If an alliance tag is missing, alliance name is used instead; if both are missing, the nickname falls back to player name only.
+
+**Tenure tiers.** The timeline starts at registration and resets if the member unregisters, is force-unregistered or is purged, then registers again. The bot checks on start, every 15 minutes and right after `/tier add`. Each tier is granted once per registration, so a tier role removed by hand is not re-added. Unregistering or purging also removes the tier roles the bot granted. The bot's role must be above the tier roles in the role list.
 
 **Alliance verification is automatic, not configured.** `type:alliance` registration and `/purge type:alliance` both look up the configured guild's (`/set guild`) *current* alliance live from the Albion API every time, and check the registering/purged player against that - there's no separate alliance name to set or keep in sync. If the guild ever switches alliances in-game, registration and purge pick that up automatically on the next run. If the guild currently isn't in any alliance, alliance registration/purge is unavailable until it joins one.
 
