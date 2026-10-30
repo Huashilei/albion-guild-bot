@@ -13,6 +13,7 @@ import {
   validateAlbionConfig,
   findAlbionUserByIGN
 } from './albion-db.js';
+import { stripTierRoles } from './tiers.js';
 
 const DEFAULT_ALLIANCE_ROLE_NAME = 'Alliance Member';
 const DEFAULT_ALLIANCE_NICKNAME_FORMAT = '[{allianceTag}] | {playerName}';
@@ -558,6 +559,7 @@ export async function purgeUsers(guild, registerType = 'guild') {
                 await member.roles.remove(roleId).catch(() => null);
               }
             }
+            await stripTierRoles(member, guildId, registration);
             removeAlbionUser(guildId, member.id, 'alliance');
           }
         } catch (error) {
@@ -648,6 +650,7 @@ export async function purgeUsers(guild, registerType = 'guild') {
           results.removed++;
           await member.roles.remove(config.registerRoleId).catch(() => null);
           await member.setNickname(null).catch(() => null);
+          await stripTierRoles(member, guildId, userData);
           removeAlbionUser(guildId, id, 'guild');
         }
       } catch (error) {
@@ -685,6 +688,7 @@ export async function unregisterUser(guild, discordId, registerType = 'guild') {
   try {
     const member = await guild.members.fetch(discordId);
     if (member) {
+      await stripTierRoles(member, guildId, userData);
       if (normalizedType === 'alliance') {
         const configuredRoles = Array.isArray(config.allianceRoleIds) ? config.allianceRoleIds : [];
         for (const roleRef of configuredRoles) {

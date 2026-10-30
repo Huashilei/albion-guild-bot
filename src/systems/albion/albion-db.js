@@ -42,6 +42,8 @@ function toLegacyView(record) {
 function toRegistrationRecord(guildId, discordId, userData, existingRecord = null) {
   const now = new Date().toISOString();
   const registerType = normalizeRegisterType(userData.registerType);
+  // Re-registering after unregister/purge starts a fresh timeline (tenure tiers restart)
+  const continuing = existingRecord && existingRecord.is_active !== false;
 
   const record = {
     id: existingRecord?.id || `${discordId}-${registerType}`,
@@ -58,7 +60,8 @@ function toRegistrationRecord(guildId, discordId, userData, existingRecord = nul
     alliance_tag: userData.allianceTag || null,
     verified_at: now,
     is_active: userData.isActive !== false,
-    created_at: existingRecord?.created_at || now,
+    created_at: (continuing && existingRecord.created_at) || now,
+    tiers_granted: continuing ? (existingRecord.tiers_granted || []) : [],
     updated_at: now
   };
 
@@ -85,6 +88,7 @@ export function loadAlbionConfig(guildId) {
     albionRegion: null,
     albionGuildName: null,
     registerRoleId: null,
+    loyaltyTiers: [], // [{ id: roleId, roleId, days, hours, replace }]
     guildTag: null,
     nicknameFormat: '{tag} {ign}',
     allianceRoleEnabled: true,
@@ -193,6 +197,7 @@ export function saveAlbionUsers(guildId, users) {
         verified_at: user.verified_at,
         is_active: user.is_active,
         created_at: user.created_at,
+        tiers_granted: user.tiers_granted || [],
         updated_at: user.updated_at
       };
     }
@@ -265,6 +270,22 @@ export function removeAlbionUser(guildId, discordId, registerType = 'guild') {
   saveAlbionUsers(guildId, users);
 
   return true;
+}
+
+/**
+ * Record which tenure tiers an active registration has already received
+ * @param {string} guildId
+ * @param {string} discordId
+ * @param {string} registerType
+ * @param {string[]} tierIds
+ */
+export function setTiersGranted(guildId, discordId, registerType, tierIds) {
+  const users = loadAlbionUsers(guildId);
+  const key = registrationKey(discordId, normalizeRegisterType(registerType));
+  const existing = users.get(key);
+  if (!existing) return;
+  users.set(key, { ...existing, tiers_granted: tierIds });
+  saveAlbionUsers(guildId, users);
 }
 
 /**
