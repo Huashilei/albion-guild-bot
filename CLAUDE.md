@@ -63,8 +63,9 @@ Administrator only:
 - `/panel [message]`: post the Member Hub in the current channel.
 - `/perms list | add | remove` (types: bank, cta, content).
 - `/set guild | register-role | guild-tag | nickname-format | alliance-role | alliance-role-enabled | alliance-nickname-format | alliance-nickname-enabled | alliance-nickname-overwrite`
+- `/tier add <role> <days> [hours] [replace] | remove <role> | list`: tenure tiers. Role is granted automatically once a registration is that old (cumulative from registration: tiers at 30d and 60d give the second role at day 60, not day 90). `replace:true` removes lower tier roles when granted. Adding a tier triggers an immediate sweep so existing qualifying members get it.
 - `/config view`: show verification config.
-- `/forceunregister <ign>`, `/purge type:<guild|alliance> confirm:true`, `/registered [type]`.
+- `/forceunregister <ign>`, `/purge type:<guild|alliance> confirm:true`, `/registered [type] [tenure]`. With `tenure:true` it ignores `type` and lists every holder of the register role (`registerRoleId`) with days on the server (Discord `joinedAt`) and days since DB registration (`registeredAt`, a proxy for role-assign date since Discord does not expose that), sorted longest on server first. Deferred reply; fetches all guild members.
 - `/ticket setup <forum> <staff_role> <transcript_channel> [ping_role] [message]`: saves the single `apply` panel and posts the Apply button in the current channel. `/ticket panel [message]` re-posts the button. `/ticket delete` (no options), `list`, `stats`, `health`, `reset confirm:true`. The panel ID is fixed to `apply`; approve role = ping role, nickname format = `{username}`. Prefix `!ticketsetup` keeps its old long signature.
 
 ### Prefix commands (default `!`)
@@ -95,6 +96,20 @@ In the active content thread: `x <role>` (key or short label), `x fill`, `x canc
 - The register role doubles as the content/regear ping role.
 
 ## Changelog
+
+### Commit log
+- `/registered tenure` and tenure tiers (`/tier`) committed together on branch `feat/member-hub-simplify-setup` and pushed.
+
+### Tenure tiers
+- New `src/systems/albion/tiers.js` (`applyTiers`, `stripTierRoles`) and `/tier` command. Tiers live in the Albion config as `loyaltyTiers: [{ id, roleId, days, hours, replace }]` (id = roleId, so one tier per role).
+- Timeline = the registration's `created_at`. Changed `toRegistrationRecord` in `albion-db.js`: re-registering over an inactive (unregistered/force-unregistered/purged) record now gets a fresh `created_at` and empty `tiers_granted`. Before, the old `created_at` was silently reused. Active records keep theirs.
+- Each record stores `tiers_granted` (ids already given) so a tier is granted once per registration; a role an admin removes by hand is not re-added. Guild and alliance records each have their own timeline.
+- Sweep runs on bot `ready` and every 15 min (`app.js`), plus right after `/tier add`. Needs the bot's role above tier roles. Failed grants are logged and retried next sweep.
+- `unregisterUser` and both purge paths call `stripTierRoles`, removing granted tier roles. If a user holds both guild and alliance records, unregistering one strips tier roles that record granted.
+- Tested: DB-level timeline reset and `tiers_granted` persistence with a temp `DATA_DIR`. Not tested against Discord. Run `npm run register` or restart to push `/tier`.
+
+### Registered-role tenure
+- `/registered tenure:true` (admin) lists register-role holders with server join age and registration age. Added `tenure` boolean option in `commands.js`, `buildTenureListEmbeds` in `embedBuilder.js`, handler branch in `slashCommands.js`. Role holders without a DB record show "not in DB"; records lacking `registeredAt` show "n/a". Not added to the `!registered` prefix command or `/help` text. Run `npm run register` or restart to push the new option (hash changes, auto-registers on start). Syntax-checked only, not run against Discord.
 
 ### Join-to-create voice
 - Added `src/systems/tempvc/` and the `voiceStateUpdate` handler in `app.js`; added `GuildVoiceStates` intent. No config or commands: a voice channel just has to be named `CREATE VC`.

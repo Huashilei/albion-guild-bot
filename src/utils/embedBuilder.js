@@ -391,3 +391,53 @@ export function buildRegisteredListEmbeds({ guild = [], alliance = [] }) {
   return embeds.slice(0, 10); // Discord allows at most 10 embeds per message
 }
 
+const MS_PER_DAY = 86400000;
+
+function daysSince(date) {
+  return Math.max(0, Math.floor((Date.now() - date.getTime()) / MS_PER_DAY));
+}
+
+// Builds embeds for register-role holders: days on the server (Discord joinedAt)
+// and days since registration (registeredAt, a proxy for when the role was given).
+// rows: [{ discordId, ign, joinedAt: Date|null, registeredAt: string|null }]
+export function buildTenureListEmbeds(rows) {
+  const sorted = [...rows].sort((a, b) => (a.joinedAt?.getTime() ?? Infinity) - (b.joinedAt?.getTime() ?? Infinity));
+
+  const lines = sorted.map((r, i) => {
+    const joined = r.joinedAt ? `${daysSince(r.joinedAt)}d` : '?';
+    const registered = r.registeredAt && !Number.isNaN(Date.parse(r.registeredAt))
+      ? `${daysSince(new Date(r.registeredAt))}d`
+      : 'n/a';
+    const name = r.ign ? `**${r.ign}**` : '*not in DB*';
+    return `${i + 1}. <@${r.discordId}> — ${name} · server ${joined} · registered ${registered}`;
+  });
+
+  const embeds = [];
+  const chunks = chunkLines(lines);
+  for (let i = 0; i < chunks.length; i += 4) {
+    embeds.push(
+      new EmbedBuilder()
+        .setColor(0x5865F2)
+        .setTitle(embeds.length === 0 ? '⏳ Register Role Tenure' : '⏳ Register Role Tenure (cont.)')
+        .addFields(chunks.slice(i, i + 4).map((value, j) => ({
+          name: chunks.length > 1 ? `Part ${i + j + 1}/${chunks.length}` : 'Members (longest on server first)',
+          value,
+          inline: false
+        })))
+    );
+  }
+
+  if (embeds.length === 0) {
+    embeds.push(
+      new EmbedBuilder()
+        .setColor(0x5865F2)
+        .setTitle('⏳ Register Role Tenure')
+        .setDescription('No members hold the register role.')
+    );
+  }
+
+  embeds[embeds.length - 1].setFooter({ text: `${rows.length} member(s) · "registered" = days since DB registration` });
+
+  return embeds.slice(0, 10);
+}
+

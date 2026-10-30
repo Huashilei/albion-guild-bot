@@ -5,13 +5,14 @@ import { DiscordRequest } from '../../utils.js';
 import { deposit, withdraw, getBalance, getActiveUsers, clearUser, clearAll, CURRENCY } from '../systems/bank/bank.js';
 import { loadPermissions, savePermissions } from '../database/guildData.js';
 import { hasPermissionSlash } from '../utils/permissions.js';
-import { buildHelpEmbed, buildPaginatedHelpEmbeds, buildHelpNavigationButtons, buildRegisteredListEmbeds } from '../utils/embedBuilder.js';
+import { buildHelpEmbed, buildPaginatedHelpEmbeds, buildHelpNavigationButtons, buildRegisteredListEmbeds, buildTenureListEmbeds } from '../utils/embedBuilder.js';
 import { contentState, pendingCreations } from '../config/contentState.js';
 import { buildContentEmbed, buildContentComponents, buildSizeSelector, autoAssignFillPlayers, getRoleDisplayName } from '../services/contentService.js';
 import { savePanels, loadPanels } from '../systems/ticket/ticket-db.js';
 import { getTicketStats, ticketSystemHealthCheck } from '../systems/ticket/ticket-utils.js';
 import { unregisterUser, purgeUsers } from '../systems/albion/albion.js';
 import { buildTypePanel } from '../systems/albion/register-ui.js';
+import { applyTiers, getSortedTiers } from '../systems/albion/tiers.js';
 import { buildHubPanel, buildBalanceBody, buildUnregisterBody } from '../systems/hub/member-hub.js';
 import { loadAlbionConfig, saveAlbionConfig, validateAlbionConfig, findAlbionUsersByIGN, getAllAlbionUsers } from '../systems/albion/albion-db.js';
 
@@ -2050,6 +2051,48 @@ The Apply button was posted in this channel.`,
       });
     }
 
+    if (options.find(opt => opt.name === 'tenure')?.value) {
+      const config = loadAlbionConfig(guildId);
+      if (!config.registerRoleId) {
+        return res.send({
+          type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+          data: { content: '❌ No register role configured. Use `/set register-role` first.', flags: 64 },
+        });
+      }
+
+      res.send({ type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE, data: { flags: 64 } });
+
+      let body;
+      try {
+        const guild = client.guilds.cache.get(guildId);
+        const members = await guild.members.fetch();
+        const records = new Map();
+        for (const rec of getAllAlbionUsers(guildId, null, true)) {
+          const prev = records.get(rec.discordId);
+          // Keep the earliest registration when a user has both guild and alliance records.
+          if (!prev || new Date(rec.registeredAt) < new Date(prev.registeredAt)) records.set(rec.discordId, rec);
+        }
+        const rows = members
+          .filter(m => m.roles.cache.has(config.registerRoleId))
+          .map(m => ({
+            discordId: m.id,
+            ign: records.get(m.id)?.ign || null,
+            joinedAt: m.joinedAt,
+            registeredAt: records.get(m.id)?.registeredAt || null
+          }));
+        body = { embeds: buildTenureListEmbeds(rows).map(e => e.toJSON()), flags: 64 };
+      } catch (err) {
+        console.error('❌ Error building tenure list:', err);
+        body = { content: '❌ Failed to build the tenure list.', flags: 64 };
+      }
+
+      await DiscordRequest(`webhooks/${process.env.APP_ID}/${req.body.token}/messages/@original`, {
+        method: 'PATCH',
+        body
+      });
+      return;
+    }
+
     const guildEntries = filterType === 'alliance' ? [] : getAllAlbionUsers(guildId, 'guild', true);
     const allianceEntries = filterType === 'guild' ? [] : getAllAlbionUsers(guildId, 'alliance', true);
     const embeds = buildRegisteredListEmbeds({ guild: guildEntries, alliance: allianceEntries });
@@ -2061,6 +2104,62 @@ The Apply button was posted in this channel.`,
         flags: 64
       },
     });
+  }
+
+  if (name === 'tier') {
+    console.log('🏅 Executing /tier command');
+    const member = req.body.member;
+    const guildId = req.body.guild_id;
+    const sub = req.body.data.options[0];
+    const subOptions = sub.options || [];
+    const getOpt = (optName) => subOptions.find(opt => opt.name === optName)?.value;
+    const reply = (content) => res.send({
+      type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+      data: { content, flags: 64, allowed_mentions: { parse: [] } },
+    });
+
+    const isAdmin = member && member.permissions &&
+      (BigInt(member.permissions) & BigInt(PermissionFlagsBits.Administrator)) === BigInt(PermissionFlagsBits.Administrator);
+    if (!isAdmin) return reply('❌ You need Administrator permission to use this command.');
+
+    const config = loadAlbionConfig(guildId);
+    config.loyaltyTiers = config.loyaltyTiers || [];
+
+    if (sub.name === 'list') {
+      const tiers = getSortedTiers(config);
+      if (tiers.length === 0) return reply('No tiers set. Use `/tier add`.');
+      const lines = tiers.map((t, i) =>
+        `${i + 1}. <@&${t.roleId}>: after **${t.days}d ${t.hours}h** registered${t.replace ? ' (replaces lower tiers)' : ''}`);
+      return reply(`**Tenure tiers** (counted from registration; resets if the member unregisters)\n${lines.join('\n')}`);
+    }
+
+    const roleId = getOpt('role');
+
+    if (sub.name === 'add') {
+      const days = getOpt('days');
+      const hours = getOpt('hours') || 0;
+      if (roleId === guildId) return reply('❌ Cannot use @everyone as a tier role.');
+      if (roleId === config.registerRoleId) return reply('❌ The register role cannot also be a tier role.');
+      if (days === 0 && hours === 0) return reply('❌ Set at least 1 hour or 1 day.');
+
+      const tier = { id: roleId, roleId, days, hours, replace: !!getOpt('replace') };
+      const idx = config.loyaltyTiers.findIndex(t => t.id === roleId);
+      if (idx >= 0) config.loyaltyTiers[idx] = tier; else config.loyaltyTiers.push(tier);
+      saveAlbionConfig(guildId, config);
+
+      reply(`✅ <@&${roleId}> will be granted after **${days}d ${hours}h** registered${tier.replace ? ', replacing lower tiers' : ''}. Existing members who already qualify get it within a minute. Keep the bot's role above this role in the role list.`);
+      const guild = client.guilds.cache.get(guildId);
+      if (guild) applyTiers(guild).catch(err => console.error('❌ Tier sweep failed:', err));
+      return;
+    }
+
+    if (sub.name === 'remove') {
+      const before = config.loyaltyTiers.length;
+      config.loyaltyTiers = config.loyaltyTiers.filter(t => t.id !== roleId);
+      if (config.loyaltyTiers.length === before) return reply('❌ That role is not a tier.');
+      saveAlbionConfig(guildId, config);
+      return reply(`✅ <@&${roleId}> is no longer a tier. Members keep the role.`);
+    }
   }
 
   console.error(`❌ Unknown command: ${name}`);

@@ -571,6 +571,48 @@ const REGISTERED_COMMAND = {
         { name: 'Alliance', value: 'alliance' },
         { name: 'Guild', value: 'guild' }
       ]
+    },
+    {
+      type: 5, // BOOLEAN
+      name: 'tenure',
+      description: 'Instead list holders of the register role with server join date and registration date',
+      required: false
+    }
+  ],
+  default_member_permissions: '8', // Administrator only
+  type: 1,
+  integration_types: [0],
+  contexts: [0]
+};
+
+// Tenure tier command (Admin only): roles granted automatically after N days/hours registered
+const TIER_COMMAND = {
+  name: 'tier',
+  description: 'Roles granted automatically as members stay registered longer (Admin only)',
+  options: [
+    {
+      type: 1, // SUB_COMMAND
+      name: 'add',
+      description: 'Grant a role after a member has been registered this long (re-run to change a role)',
+      options: [
+        { type: 8, name: 'role', description: 'Role to grant', required: true }, // ROLE
+        { type: 4, name: 'days', description: 'Days since registration', required: true, min_value: 0, max_value: 3650 },
+        { type: 4, name: 'hours', description: 'Extra hours (default 0)', required: false, min_value: 0, max_value: 23 },
+        { type: 5, name: 'replace', description: 'Remove lower tier roles when this one is granted (default false)', required: false }
+      ]
+    },
+    {
+      type: 1,
+      name: 'remove',
+      description: 'Stop granting a tier role (members keep the role)',
+      options: [
+        { type: 8, name: 'role', description: 'Tier role to remove', required: true }
+      ]
+    },
+    {
+      type: 1,
+      name: 'list',
+      description: 'Show the configured tiers'
     }
   ],
   default_member_permissions: '8', // Administrator only
@@ -644,7 +686,7 @@ const TICKET_COMMAND = {
   contexts: [0],
 };
 
-export const ALL_COMMANDS = [UTC_COMMAND, INFO_COMMAND, HELP_COMMAND, CONTENT_COMMAND, REGEAR_COMMAND, BANK_COMMAND, PERMS_COMMAND, SET_COMMAND, CONFIG_COMMAND, REGISTER_COMMAND, PANEL_COMMAND, UNREGISTER_COMMAND, FORCEUNREGISTER_COMMAND, PURGE_COMMAND, REGISTERED_COMMAND, TICKET_COMMAND];
+export const ALL_COMMANDS = [UTC_COMMAND, INFO_COMMAND, HELP_COMMAND, CONTENT_COMMAND, REGEAR_COMMAND, BANK_COMMAND, PERMS_COMMAND, SET_COMMAND, CONFIG_COMMAND, REGISTER_COMMAND, PANEL_COMMAND, UNREGISTER_COMMAND, FORCEUNREGISTER_COMMAND, PURGE_COMMAND, REGISTERED_COMMAND, TIER_COMMAND, TICKET_COMMAND];
 
 const HASH_FILE = path.join(DATA_DIR, 'commands-hash.json');
 

@@ -10,6 +10,7 @@ import { handleSlashCommands } from './src/commands/slashCommands.js';
 import { registerCommands } from './commands.js';
 import { scheduleEphemeralDismiss } from './utils.js';
 import { handleVoiceStateUpdate, cleanupTempChannels } from './src/systems/tempvc/temp-vc.js';
+import { applyTiers } from './src/systems/albion/tiers.js';
 
 // Ensure data directory exists
 if (!fs.existsSync(DATA_DIR)) {
@@ -42,6 +43,14 @@ client.once('clientReady', () => {
 // Client ready event
 client.once('ready', () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
+  // Grant tenure tier roles as registrations age (see src/systems/albion/tiers.js)
+  const sweepTiers = () => {
+    for (const guild of client.guilds.cache.values()) {
+      applyTiers(guild).catch((err) => console.error(`❌ Tier sweep failed for ${guild.id}:`, err));
+    }
+  };
+  sweepTiers();
+  setInterval(sweepTiers, 15 * 60 * 1000);
 });
 
 // Keep Discord's slash commands in sync with commands.js on every start
