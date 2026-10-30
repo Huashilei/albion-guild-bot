@@ -581,7 +581,7 @@ const REGISTERED_COMMAND = {
     {
       type: 5, // BOOLEAN
       name: 'csv',
-      description: 'With tenure: also attach the full list as a CSV file',
+      description: 'Also attach the full list as a CSV file',
       required: false
     }
   ],
