@@ -303,92 +303,66 @@ export function buildHelpNavigationButtons(currentPage, totalPages) {
   return row;
 }
 
-// Splits pre-formatted lines into chunks that each fit inside a single embed
-// field value (Discord's limit is 1024 chars - stay well under it).
-function chunkLines(lines, maxChars = 1000) {
-  const chunks = [];
-  let current = [];
-  let currentLen = 0;
+export const REGISTERED_PAGE_SIZE = 25; // ~50 chars per line, far under Discord's 6000 char message limit
+export const REGISTERED_PREV = 'reg_prev_';
+export const REGISTERED_NEXT = 'reg_next_';
 
-  for (const line of lines) {
-    const lineLen = line.length + 1; // +1 for the joining newline
-    if (current.length > 0 && currentLen + lineLen > maxChars) {
-      chunks.push(current.join('\n'));
-      current = [];
-      currentLen = 0;
+// One page of the registered-members list. filterType (all|guild|alliance) is
+// encoded in the button ids so a click can rebuild the same list.
+export function buildRegisteredPage({ guild = [], alliance = [] }, filterType = 'all', page = 0) {
+  const items = [
+    ...guild.map((e, i) => ({ section: 'guild', n: i + 1, e })),
+    ...alliance.map((e, i) => ({ section: 'alliance', n: i + 1, e }))
+  ];
+  const totalPages = Math.max(1, Math.ceil(items.length / REGISTERED_PAGE_SIZE));
+  const current = Math.min(Math.max(page, 0), totalPages - 1);
+  const start = current * REGISTERED_PAGE_SIZE;
+
+  const lines = [];
+  let lastSection = null;
+  for (const { section, n, e } of items.slice(start, start + REGISTERED_PAGE_SIZE)) {
+    if (section !== lastSection) {
+      lines.push(section === 'guild' ? `**🛡️ Guild (${guild.length})**` : `**🤝 Alliance (${alliance.length})**`);
+      lastSection = section;
     }
-    current.push(line);
-    currentLen += lineLen;
+    const region = section === 'guild' && e.region ? ` (${e.region.toUpperCase()})` : '';
+    lines.push(`${n}. <@${e.discordId}> — **${e.ign}**${region}`);
   }
-  if (current.length > 0) chunks.push(current.join('\n'));
 
-  return chunks;
+  const embed = new EmbedBuilder()
+    .setColor(0x5865F2)
+    .setTitle('📋 Registered Members')
+    .setDescription(lines.join('\n') || 'No members are currently registered.')
+    .setFooter({ text: `Page ${current + 1}/${totalPages} · Guild: ${guild.length} | Alliance: ${alliance.length}` });
+
+  const components = [];
+  if (totalPages > 1) {
+    components.push(
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`${REGISTERED_PREV}${filterType}_${current}`)
+          .setLabel('◀️ Previous')
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(current === 0),
+        new ButtonBuilder()
+          .setCustomId(`${REGISTERED_NEXT}${filterType}_${current}`)
+          .setLabel('Next ▶️')
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(current === totalPages - 1)
+      ).toJSON()
+    );
+  }
+
+  return { embed, components, page: current, totalPages };
 }
 
-// Builds one or more embeds listing registered guild/alliance members
-// (Discord ID <-> Albion IGN), safely chunked to respect Discord's per-field
-// (1024 char), per-embed (25 field), and per-message (10 embed) limits.
-export function buildRegisteredListEmbeds({ guild = [], alliance = [] }) {
-  const embeds = [];
-  let fields = [];
-  let approxChars = 0; // running total for the current, not-yet-flushed embed
-
-  const MAX_EMBED_CHARS = 5500; // Discord's real limit is 6000 (title+fields+footer) - leave margin
-
-  const flushEmbed = () => {
-    if (fields.length === 0) return;
-    embeds.push(
-      new EmbedBuilder()
-        .setColor(0x5865F2)
-        .setTitle(embeds.length === 0 ? '📋 Registered Members' : '📋 Registered Members (cont.)')
-        .addFields(fields)
-        .setTimestamp()
-    );
-    fields = [];
-    approxChars = 0;
-  };
-
-  const addSection = (label, entries, formatLine) => {
-    if (entries.length === 0) return;
-    const lines = entries.map(formatLine);
-    const chunks = chunkLines(lines);
-    chunks.forEach((chunk, i) => {
-      const fieldName = chunks.length > 1 ? `${label} (part ${i + 1}/${chunks.length})` : label;
-      const fieldSize = fieldName.length + chunk.length;
-      if (fields.length >= 24 || approxChars + fieldSize > MAX_EMBED_CHARS) {
-        flushEmbed();
-      }
-      fields.push({ name: fieldName, value: chunk, inline: false });
-      approxChars += fieldSize;
-    });
-  };
-
-  addSection(
-    `🛡️ Guild (${guild.length})`,
-    guild,
-    (e, i) => `${i + 1}. <@${e.discordId}> — **${e.ign}**${e.region ? ` (${e.region.toUpperCase()})` : ''}`
+// CSV of every registration (not paged). BOM so Excel reads UTF-8 names correctly.
+export function buildRegisteredCsv({ guild = [], alliance = [] }) {
+  const header = ['discord_id', 'ign', 'type', 'region', 'guild', 'registered_at'];
+  const lines = [...guild, ...alliance].map((e) =>
+    [e.discordId, e.ign, e.register_type, e.region, e.guild, e.registeredAt].map(csvCell).join(',')
   );
-  addSection(
-    `🤝 Alliance (${alliance.length})`,
-    alliance,
-    (e, i) => `${i + 1}. <@${e.discordId}> — **${e.ign}**`
-  );
-
-  flushEmbed();
-
-  if (embeds.length === 0) {
-    embeds.push(
-      new EmbedBuilder()
-        .setColor(0x5865F2)
-        .setTitle('📋 Registered Members')
-        .setDescription('No members are currently registered.')
-        .setTimestamp()
-    );
-  }
-
-  embeds[embeds.length - 1].setFooter({ text: `Guild: ${guild.length} | Alliance: ${alliance.length}` });
-
-  return embeds.slice(0, 10); // Discord allows at most 10 embeds per message
+  return '﻿' + [header.join(','), ...lines].join('\r\n') + '\r\n';
 }
 
 const MS_PER_DAY = 86400000;

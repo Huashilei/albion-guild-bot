@@ -2,7 +2,7 @@ import { EmbedBuilder, PermissionFlagsBits } from 'discord.js';
 import { loadPrefix, savePrefix, loadPermissions, savePermissions } from '../database/guildData.js';
 import { deposit, withdraw, getBalance, getActiveUsers, clearUser, clearAll, CURRENCY } from '../systems/bank/bank.js';
 import { hasPermission } from '../utils/permissions.js';
-import { buildHelpEmbed, buildRegisteredListEmbeds } from '../utils/embedBuilder.js';
+import { buildHelpEmbed, buildRegisteredPage } from '../utils/embedBuilder.js';
 import {
   setupTicketPanel,
   listTicketPanels,
@@ -1215,9 +1215,9 @@ export async function handlePrefixCommands(message, command, args, prefix) {
 
     const guildEntries = filterType === 'alliance' ? [] : getAllAlbionUsers(message.guild.id, 'guild', true);
     const allianceEntries = filterType === 'guild' ? [] : getAllAlbionUsers(message.guild.id, 'alliance', true);
-    const embeds = buildRegisteredListEmbeds({ guild: guildEntries, alliance: allianceEntries });
+    const { embed, components } = buildRegisteredPage({ guild: guildEntries, alliance: allianceEntries }, filterType, 0);
 
-    await message.reply({ embeds });
+    await message.reply({ embeds: [embed], components });
     return;
   }
 }

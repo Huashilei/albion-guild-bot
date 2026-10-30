@@ -5,7 +5,7 @@ import { DiscordRequest, editOriginalWithFile } from '../../utils.js';
 import { deposit, withdraw, getBalance, getActiveUsers, clearUser, clearAll, CURRENCY } from '../systems/bank/bank.js';
 import { loadPermissions, savePermissions } from '../database/guildData.js';
 import { hasPermissionSlash } from '../utils/permissions.js';
-import { buildHelpEmbed, buildPaginatedHelpEmbeds, buildHelpNavigationButtons, buildRegisteredListEmbeds, buildTenurePage, buildTenureCsv } from '../utils/embedBuilder.js';
+import { buildHelpEmbed, buildPaginatedHelpEmbeds, buildHelpNavigationButtons, buildRegisteredPage, buildRegisteredCsv, buildTenurePage, buildTenureCsv } from '../utils/embedBuilder.js';
 import { contentState, pendingCreations } from '../config/contentState.js';
 import { buildContentEmbed, buildContentComponents, buildSizeSelector, autoAssignFillPlayers, getRoleDisplayName } from '../services/contentService.js';
 import { savePanels, loadPanels } from '../systems/ticket/ticket-db.js';
@@ -2090,14 +2090,30 @@ The Apply button was posted in this channel.`,
 
     const guildEntries = filterType === 'alliance' ? [] : getAllAlbionUsers(guildId, 'guild', true);
     const allianceEntries = filterType === 'guild' ? [] : getAllAlbionUsers(guildId, 'alliance', true);
-    const embeds = buildRegisteredListEmbeds({ guild: guildEntries, alliance: allianceEntries });
+    const entries = { guild: guildEntries, alliance: allianceEntries };
+    const { embed, components } = buildRegisteredPage(entries, filterType, 0);
+
+    if (options.find(opt => opt.name === 'csv')?.value) {
+      res.send({ type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE, data: { flags: 64 } });
+      try {
+        await editOriginalWithFile(process.env.APP_ID, req.body.token, { embeds: [embed.toJSON()], components, flags: 64 }, {
+          name: `registered-${new Date().toISOString().slice(0, 10)}.csv`,
+          content: buildRegisteredCsv(entries),
+          type: 'text/csv'
+        });
+      } catch (err) {
+        console.error('❌ Error sending registered CSV:', err);
+        await DiscordRequest(`webhooks/${process.env.APP_ID}/${req.body.token}/messages/@original`, {
+          method: 'PATCH',
+          body: { content: '❌ Failed to build the CSV.', embeds: [], components: [], flags: 64 }
+        }).catch(() => {});
+      }
+      return;
+    }
 
     return res.send({
       type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-      data: {
-        embeds: embeds.map((e) => e.toJSON()),
-        flags: 64
-      },
+      data: { embeds: [embed.toJSON()], components, flags: 64 },
     });
   }
 

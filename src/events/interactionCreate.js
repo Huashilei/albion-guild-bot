@@ -5,10 +5,10 @@ import {
   handleClaimTicket, 
   handleCloseTicket 
 } from '../systems/ticket/ticket-system.js';
-import { buildPaginatedHelpEmbeds, buildHelpNavigationButtons, buildTenurePage, TENURE_PREV, TENURE_NEXT } from '../utils/embedBuilder.js';
+import { buildPaginatedHelpEmbeds, buildHelpNavigationButtons, buildTenurePage, TENURE_PREV, TENURE_NEXT, buildRegisteredPage, REGISTERED_PREV, REGISTERED_NEXT } from '../utils/embedBuilder.js';
 import { buildTenureRows } from '../systems/albion/tiers.js';
 import { registerUser } from '../systems/albion/albion.js';
-import { loadAlbionConfig } from '../systems/albion/albion-db.js';
+import { loadAlbionConfig, getAllAlbionUsers } from '../systems/albion/albion-db.js';
 import {
   REGISTER_TYPE_PREFIX, REGISTER_MODAL_PREFIX, REGISTER_IGN_FIELD,
   buildTypePanel, buildIgnModal, buildRegistrationResponse, isValidRegisterType
@@ -625,6 +625,32 @@ export async function handleButtonInteractions(req, res, client) {
       console.error('❌ Error paging tenure list:', err);
     }
     return;
+  }
+
+  // Registered-members list pagination (admin only). id: reg_<prev|next>_<all|guild|alliance>_<page>
+  if (componentId.startsWith(REGISTERED_PREV) || componentId.startsWith(REGISTERED_NEXT)) {
+    const member = req.body.member;
+    const isAdmin = member?.permissions &&
+      (BigInt(member.permissions) & BigInt(PermissionFlagsBits.Administrator)) === BigInt(PermissionFlagsBits.Administrator);
+    if (!isAdmin) {
+      return res.send({
+        type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+        data: { content: '❌ You need Administrator permission to use this.', flags: 64 }
+      });
+    }
+
+    const isNext = componentId.startsWith(REGISTERED_NEXT);
+    const [filterType, pageStr] = componentId.slice(REGISTERED_PREV.length).split('_');
+    const guildId = req.body.guild_id;
+    const entries = {
+      guild: filterType === 'alliance' ? [] : getAllAlbionUsers(guildId, 'guild', true),
+      alliance: filterType === 'guild' ? [] : getAllAlbionUsers(guildId, 'alliance', true)
+    };
+    const { embed, components } = buildRegisteredPage(entries, filterType, (parseInt(pageStr, 10) || 0) + (isNext ? 1 : -1));
+    return res.send({
+      type: InteractionResponseType.UPDATE_MESSAGE,
+      data: { embeds: [embed.toJSON()], components }
+    });
   }
 
   // Help pagination buttons
