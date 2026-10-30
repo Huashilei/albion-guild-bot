@@ -98,7 +98,9 @@ In the active content thread: `x <role>` (key or short label), `x fill`, `x canc
 ## Changelog
 
 ### Commit log
-- `/registered tenure` and tenure tiers (`/tier`) committed together on branch `feat/member-hub-simplify-setup` and pushed.
+- `/registered tenure` and tenure tiers (`/tier`) committed together (`15b2824`) on branch `feat/member-hub-simplify-setup` and pushed.
+- README documents both (`aefbf5b`).
+- `/registered tenure` rows now also show the member's current tier role and the next tier with days remaining (`buildTenureListEmbeds` row fields `tierRoleId`, `next`).
 
 ### Tenure tiers
 - New `src/systems/albion/tiers.js` (`applyTiers`, `stripTierRoles`) and `/tier` command. Tiers live in the Albion config as `loyaltyTiers: [{ id, roleId, days, hours, replace }]` (id = roleId, so one tier per role).

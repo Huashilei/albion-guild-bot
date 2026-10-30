@@ -12,7 +12,7 @@ import { savePanels, loadPanels } from '../systems/ticket/ticket-db.js';
 import { getTicketStats, ticketSystemHealthCheck } from '../systems/ticket/ticket-utils.js';
 import { unregisterUser, purgeUsers } from '../systems/albion/albion.js';
 import { buildTypePanel } from '../systems/albion/register-ui.js';
-import { applyTiers, getSortedTiers } from '../systems/albion/tiers.js';
+import { applyTiers, getSortedTiers, tierThresholdMs } from '../systems/albion/tiers.js';
 import { buildHubPanel, buildBalanceBody, buildUnregisterBody } from '../systems/hub/member-hub.js';
 import { loadAlbionConfig, saveAlbionConfig, validateAlbionConfig, findAlbionUsersByIGN, getAllAlbionUsers } from '../systems/albion/albion-db.js';
 
@@ -2072,14 +2072,24 @@ The Apply button was posted in this channel.`,
           // Keep the earliest registration when a user has both guild and alliance records.
           if (!prev || new Date(rec.registeredAt) < new Date(prev.registeredAt)) records.set(rec.discordId, rec);
         }
+        const tiers = getSortedTiers(config);
         const rows = members
           .filter(m => m.roles.cache.has(config.registerRoleId))
-          .map(m => ({
-            discordId: m.id,
-            ign: records.get(m.id)?.ign || null,
-            joinedAt: m.joinedAt,
-            registeredAt: records.get(m.id)?.registeredAt || null
-          }));
+          .map(m => {
+            const rec = records.get(m.id);
+            const regMs = rec ? Date.parse(rec.registeredAt) : NaN;
+            const age = Number.isNaN(regMs) ? null : Date.now() - regMs;
+            const granted = new Set(rec?.tiers_granted || []);
+            const next = age === null ? null : tiers.find(t => tierThresholdMs(t) > age);
+            return {
+              discordId: m.id,
+              ign: rec?.ign || null,
+              joinedAt: m.joinedAt,
+              registeredAt: rec?.registeredAt || null,
+              tierRoleId: [...tiers].reverse().find(t => granted.has(t.id))?.roleId || null,
+              next: next ? { roleId: next.roleId, days: Math.ceil((tierThresholdMs(next) - age) / 86400000) } : null
+            };
+          });
         body = { embeds: buildTenureListEmbeds(rows).map(e => e.toJSON()), flags: 64 };
       } catch (err) {
         console.error('❌ Error building tenure list:', err);

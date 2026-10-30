@@ -409,7 +409,9 @@ export function buildTenureListEmbeds(rows) {
       ? `${daysSince(new Date(r.registeredAt))}d`
       : 'n/a';
     const name = r.ign ? `**${r.ign}**` : '*not in DB*';
-    return `${i + 1}. <@${r.discordId}> — ${name} · server ${joined} · registered ${registered}`;
+    const tier = r.tierRoleId ? ` · <@&${r.tierRoleId}>` : '';
+    const next = r.next ? ` · next <@&${r.next.roleId}> in ${r.next.days}d` : '';
+    return `${i + 1}. <@${r.discordId}> — ${name} · server ${joined} · registered ${registered}${tier}${next}`;
   });
 
   const embeds = [];

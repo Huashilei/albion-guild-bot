@@ -151,7 +151,7 @@ All writes go through a temp-file-then-rename pattern (`src/utils/atomicFile.js`
 | `/purge type:guild confirm:true` | Re-verify every guild-registered member against the Albion API and remove anyone no longer in the guild (including members who hold the role but were never registered at all) |
 | `/purge type:alliance confirm:true` | Re-verify every alliance-registered member and remove anyone no longer in the guild's current alliance (same manually-assigned-role handling as guild purge) |
 | `/registered [type:all\|guild\|alliance]` (or `!registered [all\|guild\|alliance]`) | List every registered member with their linked Albion IGN, grouped by type |
-| `/registered tenure:true` | List every holder of the register role with days on the server and days since registration, longest first. Discord does not expose role-assignment time, so registration date stands in for it |
+| `/registered tenure:true` | List every holder of the register role with days on the server and days since registration, longest first, plus each member's current tier role and the next tier with days remaining. Discord does not expose role-assignment time, so registration date stands in for it |
 | `/tier add <role> <days> [hours] [replace]` | Grant a role once a member has been registered that long. Thresholds count from registration, so tiers at 30 and 60 days give the second role at day 60. `replace:true` removes lower tier roles. Re-run with the same role to change it |
 | `/tier remove <role>` | Stop granting a tier role (members keep it) |
 | `/tier list` | Show configured tiers |
