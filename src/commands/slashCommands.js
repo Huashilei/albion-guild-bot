@@ -1,18 +1,18 @@
 import { EmbedBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType } from 'discord.js';
 import axios from 'axios';
 import { InteractionResponseType } from 'discord-interactions';
-import { DiscordRequest } from '../../utils.js';
+import { DiscordRequest, editOriginalWithFile } from '../../utils.js';
 import { deposit, withdraw, getBalance, getActiveUsers, clearUser, clearAll, CURRENCY } from '../systems/bank/bank.js';
 import { loadPermissions, savePermissions } from '../database/guildData.js';
 import { hasPermissionSlash } from '../utils/permissions.js';
-import { buildHelpEmbed, buildPaginatedHelpEmbeds, buildHelpNavigationButtons, buildRegisteredListEmbeds, buildTenureListEmbeds } from '../utils/embedBuilder.js';
+import { buildHelpEmbed, buildPaginatedHelpEmbeds, buildHelpNavigationButtons, buildRegisteredListEmbeds, buildTenurePage, buildTenureCsv } from '../utils/embedBuilder.js';
 import { contentState, pendingCreations } from '../config/contentState.js';
 import { buildContentEmbed, buildContentComponents, buildSizeSelector, autoAssignFillPlayers, getRoleDisplayName } from '../services/contentService.js';
 import { savePanels, loadPanels } from '../systems/ticket/ticket-db.js';
 import { getTicketStats, ticketSystemHealthCheck } from '../systems/ticket/ticket-utils.js';
 import { unregisterUser, purgeUsers } from '../systems/albion/albion.js';
 import { buildTypePanel } from '../systems/albion/register-ui.js';
-import { applyTiers, getSortedTiers } from '../systems/albion/tiers.js';
+import { applyTiers, getSortedTiers, buildTenureRows } from '../systems/albion/tiers.js';
 import { buildHubPanel, buildBalanceBody, buildUnregisterBody } from '../systems/hub/member-hub.js';
 import { loadAlbionConfig, saveAlbionConfig, validateAlbionConfig, findAlbionUsersByIGN, getAllAlbionUsers } from '../systems/albion/albion-db.js';
 
@@ -2062,34 +2062,29 @@ The Apply button was posted in this channel.`,
 
       res.send({ type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE, data: { flags: 64 } });
 
-      let body;
+      const wantCsv = !!options.find(opt => opt.name === 'csv')?.value;
+      const patchUrl = `webhooks/${process.env.APP_ID}/${req.body.token}/messages/@original`;
       try {
         const guild = client.guilds.cache.get(guildId);
-        const members = await guild.members.fetch();
-        const records = new Map();
-        for (const rec of getAllAlbionUsers(guildId, null, true)) {
-          const prev = records.get(rec.discordId);
-          // Keep the earliest registration when a user has both guild and alliance records.
-          if (!prev || new Date(rec.registeredAt) < new Date(prev.registeredAt)) records.set(rec.discordId, rec);
+        const rows = await buildTenureRows(guild, config);
+        const { embed, components } = buildTenurePage(rows, 0);
+        const body = { embeds: [embed.toJSON()], components, flags: 64 };
+        if (wantCsv) {
+          await editOriginalWithFile(process.env.APP_ID, req.body.token, body, {
+            name: `register-tenure-${new Date().toISOString().slice(0, 10)}.csv`,
+            content: buildTenureCsv(rows),
+            type: 'text/csv'
+          });
+        } else {
+          await DiscordRequest(patchUrl, { method: 'PATCH', body });
         }
-        const rows = members
-          .filter(m => m.roles.cache.has(config.registerRoleId))
-          .map(m => ({
-            discordId: m.id,
-            ign: records.get(m.id)?.ign || null,
-            joinedAt: m.joinedAt,
-            registeredAt: records.get(m.id)?.registeredAt || null
-          }));
-        body = { embeds: buildTenureListEmbeds(rows).map(e => e.toJSON()), flags: 64 };
       } catch (err) {
         console.error('❌ Error building tenure list:', err);
-        body = { content: '❌ Failed to build the tenure list.', flags: 64 };
+        await DiscordRequest(patchUrl, {
+          method: 'PATCH',
+          body: { content: '❌ Failed to build the tenure list.', embeds: [], components: [], flags: 64 }
+        }).catch(() => {});
       }
-
-      await DiscordRequest(`webhooks/${process.env.APP_ID}/${req.body.token}/messages/@original`, {
-        method: 'PATCH',
-        body
-      });
       return;
     }
 

@@ -76,3 +76,21 @@ export function getRandomEmoji() {
 export function capitalize(str) {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
+
+/**
+ * Edit an interaction's original response with a file attached. Unlike
+ * DiscordRequest this sends multipart and does NOT schedule the ephemeral
+ * auto-dismiss, so the recipient has time to download the file.
+ */
+export async function editOriginalWithFile(appId, token, body, file) {
+  const form = new FormData();
+  form.append('payload_json', JSON.stringify({ ...body, attachments: [{ id: 0, filename: file.name }] }));
+  form.append('files[0]', new Blob([file.content], { type: file.type || 'text/plain' }), file.name);
+  const res = await fetch(`https://discord.com/api/v10/webhooks/${appId}/${token}/messages/@original`, {
+    method: 'PATCH',
+    headers: { 'User-Agent': 'DiscordBot (https://github.com/discord/discord-example-app, 1.0.0)' },
+    body: form
+  });
+  if (!res.ok) throw new Error(JSON.stringify(await res.json().catch(() => ({ status: res.status }))));
+  return res;
+}

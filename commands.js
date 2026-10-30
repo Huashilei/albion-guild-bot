@@ -577,6 +577,12 @@ const REGISTERED_COMMAND = {
       name: 'tenure',
       description: 'Instead list holders of the register role with server join date and registration date',
       required: false
+    },
+    {
+      type: 5, // BOOLEAN
+      name: 'csv',
+      description: 'With tenure: also attach the full list as a CSV file',
+      required: false
     }
   ],
   default_member_permissions: '8', // Administrator only

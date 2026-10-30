@@ -65,7 +65,7 @@ Administrator only:
 - `/set guild | register-role | guild-tag | nickname-format | alliance-role | alliance-role-enabled | alliance-nickname-format | alliance-nickname-enabled | alliance-nickname-overwrite`
 - `/tier add <role> <days> [hours] [replace] | remove <role> | list`: tenure tiers. Role is granted automatically once a registration is that old (cumulative from registration: tiers at 30d and 60d give the second role at day 60, not day 90). `replace:true` removes lower tier roles when granted. Adding a tier triggers an immediate sweep so existing qualifying members get it.
 - `/config view`: show verification config.
-- `/forceunregister <ign>`, `/purge type:<guild|alliance> confirm:true`, `/registered [type] [tenure]`. With `tenure:true` it ignores `type` and lists every holder of the register role (`registerRoleId`) with days on the server (Discord `joinedAt`) and days since DB registration (`registeredAt`, a proxy for role-assign date since Discord does not expose that), sorted longest on server first. Deferred reply; fetches all guild members.
+- `/forceunregister <ign>`, `/purge type:<guild|alliance> confirm:true`, `/registered [type] [tenure]`. With `tenure:true` (optionally `csv:true`) it ignores `type` and lists every holder of the register role (`registerRoleId`) with days on the server (Discord `joinedAt`) and days since DB registration (`registeredAt`, a proxy for role-assign date since Discord does not expose that), sorted longest on server first. Deferred reply, paged 20 per embed with `tenure_prev_<n>`/`tenure_next_<n>` buttons (admin-checked; rows rebuilt from member cache per click). `csv:true` attaches the full list via `editOriginalWithFile` (multipart, no auto-dismiss).
 - `/ticket setup <forum> <staff_role> <transcript_channel> [ping_role] [message]`: saves the single `apply` panel and posts the Apply button in the current channel. `/ticket panel [message]` re-posts the button. `/ticket delete` (no options), `list`, `stats`, `health`, `reset confirm:true`. The panel ID is fixed to `apply`; approve role = ping role, nickname format = `{username}`. Prefix `!ticketsetup` keeps its old long signature.
 
 ### Prefix commands (default `!`)
@@ -98,7 +98,10 @@ In the active content thread: `x <role>` (key or short label), `x fill`, `x canc
 ## Changelog
 
 ### Commit log
-- `/registered tenure` and tenure tiers (`/tier`) committed together on branch `feat/member-hub-simplify-setup` and pushed.
+- Tenure list now paged (20 per page) plus optional CSV. Reason: Discord caps all embeds in one message at 6000 chars total, so the old multi-embed list failed above ~40 members. `buildTenureListEmbeds` replaced by `buildTenurePage` and `buildTenureCsv` in `embedBuilder.js`; row building moved to `buildTenureRows` in `tiers.js`; `editOriginalWithFile` added to `utils.js`. Tested with 100 fake members (5 pages, CSV 101 lines); not tested against Discord. Known remaining: plain `/registered` (no tenure) still uses multi-embed and has the same 6000 char limit.
+- `/registered tenure` and tenure tiers (`/tier`) committed together (`15b2824`) on branch `feat/member-hub-simplify-setup` and pushed.
+- README documents both (`aefbf5b`).
+- `/registered tenure` rows now also show the member's current tier role and the next tier with days remaining (`buildTenureListEmbeds` row fields `tierRoleId`, `next`).
 
 ### Tenure tiers
 - New `src/systems/albion/tiers.js` (`applyTiers`, `stripTierRoles`) and `/tier` command. Tiers live in the Albion config as `loyaltyTiers: [{ id, roleId, days, hours, replace }]` (id = roleId, so one tier per role).

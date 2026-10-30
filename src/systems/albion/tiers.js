@@ -77,3 +77,46 @@ export async function stripTierRoles(member, guildId, record) {
     }
   }
 }
+
+const MS_PER_DAY = 86400000;
+
+/**
+ * One row per register-role holder, longest on the server first. Used by the
+ * /registered tenure pages and CSV export.
+ */
+export async function buildTenureRows(guild, config = loadAlbionConfig(guild.id)) {
+  if (guild.members.cache.size < guild.memberCount) await guild.members.fetch();
+
+  const records = new Map();
+  for (const rec of getAllAlbionUsers(guild.id, null, true)) {
+    const prev = records.get(rec.discordId);
+    // Keep the earliest registration when a user has both guild and alliance records.
+    if (!prev || Date.parse(rec.registeredAt) < Date.parse(prev.registeredAt)) records.set(rec.discordId, rec);
+  }
+
+  const tiers = getSortedTiers(config);
+  const roleName = (id) => guild.roles.cache.get(id)?.name || id;
+  const now = Date.now();
+
+  return guild.members.cache
+    .filter((m) => m.roles.cache.has(config.registerRoleId))
+    .map((m) => {
+      const rec = records.get(m.id);
+      const regMs = rec ? Date.parse(rec.registeredAt) : NaN;
+      const age = Number.isNaN(regMs) ? null : now - regMs;
+      const granted = new Set(rec?.tiers_granted || []);
+      const current = [...tiers].reverse().find((t) => granted.has(t.id));
+      const next = age === null ? null : tiers.find((t) => tierThresholdMs(t) > age);
+      return {
+        discordId: m.id,
+        username: m.user.username,
+        ign: rec?.ign || null,
+        joinedAt: m.joinedAt,
+        registeredAt: rec?.registeredAt || null,
+        tierRoleId: current?.roleId || null,
+        tierName: current ? roleName(current.roleId) : null,
+        next: next ? { roleId: next.roleId, name: roleName(next.roleId), days: Math.ceil((tierThresholdMs(next) - age) / MS_PER_DAY) } : null
+      };
+    })
+    .sort((a, b) => (a.joinedAt?.getTime() ?? Infinity) - (b.joinedAt?.getTime() ?? Infinity));
+}
