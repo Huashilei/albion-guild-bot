@@ -397,13 +397,18 @@ function daysSince(date) {
   return Math.max(0, Math.floor((Date.now() - date.getTime()) / MS_PER_DAY));
 }
 
-// Builds embeds for register-role holders: days on the server (Discord joinedAt)
-// and days since registration (registeredAt, a proxy for when the role was given).
-// rows: [{ discordId, ign, joinedAt: Date|null, registeredAt: string|null }]
-export function buildTenureListEmbeds(rows) {
-  const sorted = [...rows].sort((a, b) => (a.joinedAt?.getTime() ?? Infinity) - (b.joinedAt?.getTime() ?? Infinity));
+export const TENURE_PAGE_SIZE = 20; // ~150 chars per line keeps a page well under Discord's 6000 char message limit
+export const TENURE_PREV = 'tenure_prev_';
+export const TENURE_NEXT = 'tenure_next_';
 
-  const lines = sorted.map((r, i) => {
+// One page of the register-role tenure list (rows come from buildTenureRows,
+// already sorted). Returns the embed plus Prev/Next buttons when there is more than one page.
+export function buildTenurePage(rows, page = 0) {
+  const totalPages = Math.max(1, Math.ceil(rows.length / TENURE_PAGE_SIZE));
+  const current = Math.min(Math.max(page, 0), totalPages - 1);
+  const start = current * TENURE_PAGE_SIZE;
+
+  const lines = rows.slice(start, start + TENURE_PAGE_SIZE).map((r, i) => {
     const joined = r.joinedAt ? `${daysSince(r.joinedAt)}d` : '?';
     const registered = r.registeredAt && !Number.isNaN(Date.parse(r.registeredAt))
       ? `${daysSince(new Date(r.registeredAt))}d`
@@ -411,35 +416,59 @@ export function buildTenureListEmbeds(rows) {
     const name = r.ign ? `**${r.ign}**` : '*not in DB*';
     const tier = r.tierRoleId ? ` · <@&${r.tierRoleId}>` : '';
     const next = r.next ? ` · next <@&${r.next.roleId}> in ${r.next.days}d` : '';
-    return `${i + 1}. <@${r.discordId}> — ${name} · server ${joined} · registered ${registered}${tier}${next}`;
+    return `${start + i + 1}. <@${r.discordId}> — ${name} · server ${joined} · registered ${registered}${tier}${next}`;
   });
 
-  const embeds = [];
-  const chunks = chunkLines(lines);
-  for (let i = 0; i < chunks.length; i += 4) {
-    embeds.push(
-      new EmbedBuilder()
-        .setColor(0x5865F2)
-        .setTitle(embeds.length === 0 ? '⏳ Register Role Tenure' : '⏳ Register Role Tenure (cont.)')
-        .addFields(chunks.slice(i, i + 4).map((value, j) => ({
-          name: chunks.length > 1 ? `Part ${i + j + 1}/${chunks.length}` : 'Members (longest on server first)',
-          value,
-          inline: false
-        })))
+  const embed = new EmbedBuilder()
+    .setColor(0x5865F2)
+    .setTitle('⏳ Register Role Tenure')
+    .setDescription(lines.join('\n') || 'No members hold the register role.')
+    .setFooter({ text: `Page ${current + 1}/${totalPages} · ${rows.length} member(s) · longest on server first · "registered" = days since DB registration` });
+
+  const components = [];
+  if (totalPages > 1) {
+    components.push(
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`${TENURE_PREV}${current}`)
+          .setLabel('◀️ Previous')
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(current === 0),
+        new ButtonBuilder()
+          .setCustomId(`${TENURE_NEXT}${current}`)
+          .setLabel('Next ▶️')
+          .setStyle(ButtonStyle.Primary)
+          .setDisabled(current === totalPages - 1)
+      ).toJSON()
     );
   }
 
-  if (embeds.length === 0) {
-    embeds.push(
-      new EmbedBuilder()
-        .setColor(0x5865F2)
-        .setTitle('⏳ Register Role Tenure')
-        .setDescription('No members hold the register role.')
-    );
-  }
-
-  embeds[embeds.length - 1].setFooter({ text: `${rows.length} member(s) · "registered" = days since DB registration` });
-
-  return embeds.slice(0, 10);
+  return { embed, components, page: current, totalPages };
 }
 
+function csvCell(value) {
+  let s = value === null || value === undefined ? '' : String(value);
+  if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`; // stop spreadsheet formula injection
+  return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+// CSV of every tenure row (not paged). BOM so Excel reads UTF-8 names correctly.
+export function buildTenureCsv(rows) {
+  const header = ['discord_id', 'username', 'ign', 'joined_server_at', 'days_on_server', 'registered_at', 'days_registered', 'current_tier', 'next_tier', 'days_to_next_tier'];
+  const lines = rows.map((r) => {
+    const regOk = r.registeredAt && !Number.isNaN(Date.parse(r.registeredAt));
+    return [
+      r.discordId,
+      r.username,
+      r.ign,
+      r.joinedAt ? r.joinedAt.toISOString() : '',
+      r.joinedAt ? daysSince(r.joinedAt) : '',
+      regOk ? r.registeredAt : '',
+      regOk ? daysSince(new Date(r.registeredAt)) : '',
+      r.tierName,
+      r.next?.name,
+      r.next?.days
+    ].map(csvCell).join(',');
+  });
+  return '﻿' + [header.join(','), ...lines].join('\r\n') + '\r\n';
+}

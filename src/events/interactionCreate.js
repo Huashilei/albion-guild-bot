@@ -5,7 +5,8 @@ import {
   handleClaimTicket, 
   handleCloseTicket 
 } from '../systems/ticket/ticket-system.js';
-import { buildPaginatedHelpEmbeds, buildHelpNavigationButtons } from '../utils/embedBuilder.js';
+import { buildPaginatedHelpEmbeds, buildHelpNavigationButtons, buildTenurePage, TENURE_PREV, TENURE_NEXT } from '../utils/embedBuilder.js';
+import { buildTenureRows } from '../systems/albion/tiers.js';
 import { registerUser } from '../systems/albion/albion.js';
 import { loadAlbionConfig } from '../systems/albion/albion-db.js';
 import {
@@ -16,7 +17,7 @@ import {
   HUB_REGISTER, HUB_UNREGISTER, HUB_BALANCE, HUB_HELP,
   buildBalanceBody, buildUnregisterBody
 } from '../systems/hub/member-hub.js';
-import { EmbedBuilder } from 'discord.js';
+import { EmbedBuilder, PermissionFlagsBits } from 'discord.js';
 import { buildContentEmbed, buildContentComponents, buildMethodSelector, buildPresetNondpsMessage, buildPresetDpsMessage, buildCustomRoleModal, buildContinueToDetailsButton, buildContentDetailsModal, buildContentPreviewEmbed, buildPreviewComponents, buildDuplicatesStep, autoAssignFillPlayers, getRoleDisplayName, getBaseKey, ROLE_MAP } from '../services/contentService.js';
 import { contentState, pendingCreations } from '../config/contentState.js';
 
@@ -592,6 +593,37 @@ export async function handleButtonInteractions(req, res, client) {
     };
 
     await handleCloseTicket(interaction);
+    return;
+  }
+
+  // Tenure list pagination (admin only; rows are rebuilt from the member cache on each click)
+  if (componentId.startsWith(TENURE_PREV) || componentId.startsWith(TENURE_NEXT)) {
+    const member = req.body.member;
+    const isAdmin = member?.permissions &&
+      (BigInt(member.permissions) & BigInt(PermissionFlagsBits.Administrator)) === BigInt(PermissionFlagsBits.Administrator);
+    if (!isAdmin) {
+      return res.send({
+        type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+        data: { content: '❌ You need Administrator permission to use this.', flags: 64 }
+      });
+    }
+
+    res.send({ type: InteractionResponseType.DEFERRED_UPDATE_MESSAGE });
+
+    const isNext = componentId.startsWith(TENURE_NEXT);
+    const currentPage = parseInt(componentId.slice(TENURE_PREV.length), 10) || 0;
+    const patchUrl = `webhooks/${process.env.APP_ID}/${req.body.token}/messages/@original`;
+    try {
+      const guild = client.guilds.cache.get(req.body.guild_id);
+      const rows = await buildTenureRows(guild);
+      const { embed, components } = buildTenurePage(rows, currentPage + (isNext ? 1 : -1));
+      await DiscordRequest(patchUrl, {
+        method: 'PATCH',
+        body: { embeds: [embed.toJSON()], components }
+      });
+    } catch (err) {
+      console.error('❌ Error paging tenure list:', err);
+    }
     return;
   }
 
