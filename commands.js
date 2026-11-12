@@ -638,7 +638,9 @@ const WELCOME_COMMAND = {
       description: "Post a welcome card here when someone joins (turns off Discord's default join message)",
       options: [
         { type: 7, name: 'channel', description: 'Channel for welcome cards', required: true, channel_types: [0, 5] }, // CHANNEL
-        { type: 3, name: 'message', description: 'Text with the card. Use {user}, {name}, {server}, {count}', required: false, max_length: 1500 }
+        { type: 7, name: 'apply_channel', description: 'Channel new members go to join the guild ({apply})', required: false, channel_types: [0, 5, 15] },
+        { type: 7, name: 'chill_channel', description: 'Channel to hang out in ({chill})', required: false, channel_types: [0, 5] },
+        { type: 3, name: 'message', description: 'Text with the card. Use {user}, {name}, {server}, {apply}, {chill}, {count}', required: false, max_length: 1500 }
       ]
     },
     {

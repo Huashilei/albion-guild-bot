@@ -76,7 +76,7 @@ export function buildHelpEmbed(member, guildId, isSlashCommand = false) {
     description += `• \`/perms add <bank|cta|content> @role\` - Grant role permission\n`;
     description += `• \`/perms remove <bank|cta|content> @role\` - Revoke role permission\n`;
     description += `• \`/panel\` - Post the member hub buttons (Register / Unregister / Balance / Help)\n`;
-    description += `• \`/welcome setup #channel [message]\` - Post a welcome card when someone joins (replaces Discord's join message)\n`;
+    description += `• \`/welcome setup #channel [apply_channel] [chill_channel] [message]\` - Post a welcome card when someone joins (replaces Discord's join message)\n`;
     description += `• \`/welcome test\` / \`/welcome off\` - Preview the card / turn welcome cards off\n`;
     description += `• \`/config view\` - View guild verification settings\n`;
     description += `• \`/set guild <region> <guild_name>\` - Configure Albion guild\n`;
@@ -252,9 +252,9 @@ export function buildPaginatedHelpEmbeds(member, guildId, isSlashCommand = false
         `• \`/perms remove <bank|cta|content> @role\`\n` +
         `  Revoke role permission\n\n` +
         `**👋 Welcome Cards** (Administrator Only):\n` +
-        `• \`/welcome setup #channel [message]\`\n` +
+        `• \`/welcome setup #channel [apply_channel] [chill_channel] [message]\`\n` +
         `  Post a welcome card when someone joins and turn off Discord's join message\n` +
-        `  Message can use {user}, {name}, {server}, {count}\n` +
+        `  Message can use {user}, {name}, {server}, {apply}, {chill}, {count}\n` +
         `• \`/welcome test\`\n` +
         `  Post a preview card for yourself\n` +
         `• \`/welcome off\`\n` +

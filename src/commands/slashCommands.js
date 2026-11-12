@@ -14,7 +14,7 @@ import { unregisterUser, purgeUsers } from '../systems/albion/albion.js';
 import { buildTypePanel } from '../systems/albion/register-ui.js';
 import { applyTiers, getSortedTiers, buildTenureRows } from '../systems/albion/tiers.js';
 import { buildHubPanel, buildBalanceBody, buildUnregisterBody } from '../systems/hub/member-hub.js';
-import { loadWelcomeConfig, saveWelcomeConfig, sendWelcome, setDiscordJoinMessage, DEFAULT_WELCOME_MESSAGE } from '../systems/welcome/welcome.js';
+import { loadWelcomeConfig, saveWelcomeConfig, sendWelcome, setDiscordJoinMessage, DEFAULT_WELCOME_MESSAGE, OLD_DEFAULT_WELCOME_MESSAGE } from '../systems/welcome/welcome.js';
 import { loadAlbionConfig, saveAlbionConfig, validateAlbionConfig, findAlbionUsersByIGN, getAllAlbionUsers } from '../systems/albion/albion-db.js';
 
 export async function handleSlashCommands(req, res, client) {
@@ -2196,7 +2196,10 @@ The Apply button was posted in this channel.`,
     if (sub.name === 'setup') {
       config.enabled = true;
       config.channelId = getOpt('channel');
-      config.message = getOpt('message')?.replace(/\n/g, '\n') || config.message || DEFAULT_WELCOME_MESSAGE;
+      config.applyChannelId = getOpt('apply_channel') || config.applyChannelId || null;
+      config.chillChannelId = getOpt('chill_channel') || config.chillChannelId || null;
+      const savedMessage = config.message === OLD_DEFAULT_WELCOME_MESSAGE ? null : config.message;
+      config.message = getOpt('message')?.replace(/\\n/g, '\n') || savedMessage || DEFAULT_WELCOME_MESSAGE;
       saveWelcomeConfig(guildId, config);
       const suppressed = await setDiscordJoinMessage(guildId, false);
       const note = suppressed

@@ -1,15 +1,19 @@
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { AttachmentBuilder } from 'discord.js';
 import { DATA_DIR } from '../../config/constants.js';
 import { writeJsonAtomicSync } from '../../utils/atomicFile.js';
 import { DiscordRequest } from '../../../utils.js';
-import { renderWelcomeCard } from './welcome-card.js';
+
+const WELCOME_GIF = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../assets/welcome/welcome.gif');
 
 // Guild system_channel_flags bit that hides Discord's built-in "X joined" message
 export const SUPPRESS_JOIN_NOTIFICATIONS = 1 << 0;
 
-export const DEFAULT_WELCOME_MESSAGE = 'Welcome to **{server}**, {user}! You are member **#{count}**.';
+export const DEFAULT_WELCOME_MESSAGE = 'Welcome to **{server}**, {user}! Proceed to {apply} to join the guild or chill at {chill}.';
+// Default shipped before {apply}/{chill} existed; treated as "not customised"
+export const OLD_DEFAULT_WELCOME_MESSAGE = 'Welcome to **{server}**, {user}! You are member **#{count}**.';
 
 const configPath = (guildId) => path.join(DATA_DIR, `welcome-config-${guildId}.json`);
 
@@ -17,7 +21,7 @@ export function loadWelcomeConfig(guildId) {
   try {
     return JSON.parse(fs.readFileSync(configPath(guildId), 'utf8'));
   } catch {
-    return { enabled: false, channelId: null, message: DEFAULT_WELCOME_MESSAGE };
+    return { enabled: false, channelId: null, applyChannelId: null, chillChannelId: null, message: DEFAULT_WELCOME_MESSAGE };
   }
 }
 
@@ -25,17 +29,21 @@ export function saveWelcomeConfig(guildId, config) {
   writeJsonAtomicSync(configPath(guildId), config);
 }
 
-// {user} mention, {name} display name, {server} server name, {count} member count
-function formatMessage(template, member) {
-  return (template || DEFAULT_WELCOME_MESSAGE)
+// {user} mention, {name} display name, {server} server name, {count} member
+// count, {apply} / {chill} the channels picked in /welcome setup
+function formatMessage(config, member) {
+  const channel = (id, fallback) => (id ? `<#${id}>` : fallback);
+  return (config.message || DEFAULT_WELCOME_MESSAGE)
     .replaceAll('{user}', `<@${member.id}>`)
     .replaceAll('{name}', member.displayName)
     .replaceAll('{server}', member.guild.name)
-    .replaceAll('{count}', String(member.guild.memberCount));
+    .replaceAll('{count}', String(member.guild.memberCount))
+    .replaceAll('{apply}', channel(config.applyChannelId, '#apply'))
+    .replaceAll('{chill}', channel(config.chillChannelId, '#public'));
 }
 
 /**
- * Post the welcome card for `member` in the configured channel.
+ * Post the welcome GIF and message for `member` in the configured channel.
  * Returns the channel it was sent to, or null when welcome is off.
  */
 export async function sendWelcome(member, { force = false } = {}) {
@@ -48,10 +56,9 @@ export async function sendWelcome(member, { force = false } = {}) {
     return null;
   }
 
-  const card = new AttachmentBuilder(renderWelcomeCard(member.displayName), { name: 'welcome.gif' });
   await channel.send({
-    content: formatMessage(config.message, member),
-    files: [card],
+    content: formatMessage(config, member),
+    files: [new AttachmentBuilder(WELCOME_GIF, { name: 'welcome.gif' })],
     allowed_mentions: { users: [member.id] },
   });
   return channel;
