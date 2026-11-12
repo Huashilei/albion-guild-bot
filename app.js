@@ -11,6 +11,7 @@ import { registerCommands } from './commands.js';
 import { scheduleEphemeralDismiss } from './utils.js';
 import { handleVoiceStateUpdate, cleanupTempChannels } from './src/systems/tempvc/temp-vc.js';
 import { applyTiers } from './src/systems/albion/tiers.js';
+import { handleGuildMemberAdd } from './src/systems/welcome/welcome.js';
 
 // Ensure data directory exists
 if (!fs.existsSync(DATA_DIR)) {
@@ -62,6 +63,9 @@ registerCommands()
 client.on('messageCreate', async (message) => {
   await handleMessageCreate(message, client);
 });
+
+// Custom welcome card for new members
+client.on('guildMemberAdd', handleGuildMemberAdd);
 
 // Join-to-create voice channels
 client.on('voiceStateUpdate', handleVoiceStateUpdate);

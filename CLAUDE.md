@@ -16,18 +16,19 @@ White-label Discord bot for Albion Online guilds. Node ESM (`"type": "module"`),
 - `src/events/interactionCreate.js`: `handleButtonInteractions` (components) and `handleModalSubmit`. All custom_id routing lives here.
 - `src/events/messageCreate.js`: content-thread `x <role>` / `x fill` / `x cancel` signup, prefix command dispatch, ticket message logging. Ignores bots and DMs.
 - `src/services/contentService.js`: content callout roles (`MASTER_ROLES`), embed and button builders, wizard step builders, `autoAssignFillPlayers`.
-- `src/config/contentState.js`: `contentState`, a single global active callout (NOT per server), and `pendingCreations`, a Map of wizard sessions by userId.
+- `src/config/contentState.js`: `callouts`, a Map of live content callouts keyed by callout message id (several can run at once, persisted to `DATA_DIR/content-callouts.json`, dropped after 7 days), lookups `getCalloutByMessage` / `getCalloutByThread` / `findCalloutForCommand`, and `pendingCreations`, a Map of wizard sessions by userId. `buildContentEmbed`, `buildContentComponents` and `autoAssignFillPlayers` take the callout as a parameter. Call `saveCallouts()` after mutating one.
 - `src/config/constants.js`: `DATA_DIR` (env, default `/home/container/data`), `BOT_NAME` (env, default `Minokawa`), `CUSTOM_EMOJIS`, `PORT`.
 - `src/systems/albion/`: `albion.js` (register/unregister/purge logic), `albion-api.js` (Albion gameinfo API wrapper), `albion-db.js` (config and users JSON), `register-ui.js` (registration panel, modal and result embed builders).
 - `src/systems/hub/member-hub.js`: Member Hub panel plus shared balance and unregister response builders.
 - `src/systems/bank/bank.js`: per-server balances.
 - `src/systems/ticket/`: forum-based application tickets (`ticket-system.js` handlers, `ticket-db.js` storage, `ticket-commands.js` prefix helpers, `ticket-utils.js` stats/health).
+- `src/systems/welcome/`: `welcome-card.js` renders an animated GIF card (`assets/welcome/background.gif` scaled 2x, "WELCOME" + member display name in Cinzel Decorative from `assets/welcome/`, OFL font). Decoded frames are cached; one render is ~0.5s and ~1.8MB. `welcome.js` holds per-guild config, `handleGuildMemberAdd` (wired in `app.js`) and `setDiscordJoinMessage`, which toggles the guild `system_channel_flags` SUPPRESS_JOIN_NOTIFICATIONS bit (needs Manage Server).
 - `src/systems/tempvc/temp-vc.js`: join-to-create voice. Joining a voice channel named `CREATE VC` (case-insensitive) creates `<name>'s VC` in the same category (copies bitrate, user limit, overwrites), moves the member in, and deletes it when empty. Temp channel ids persist in `DATA_DIR/temp-vc.json` for cleanup after restarts. Needs the `GuildVoiceStates` intent and Manage Channels + Move Members permissions.
 - `src/database/guildData.js`: prefix and role-permission files. `src/utils/permissions.js`: `hasPermission` (gateway member) and `hasPermissionSlash` (raw interaction member). `src/utils/embedBuilder.js`: help pages and the registered-members list. `src/utils/atomicFile.js`: atomic JSON write.
 
 ### Data files (all under `DATA_DIR`)
 
-`albion-config-<guild>.json`, `albion-users-<guild>.json`, `bank-data-<guild>.json`, `permissions-config-<guild>.json`, `prefix-config-<guild>.json`, `commands-hash.json`, and `guilds/<guild>/` (tickets, panels, transcripts).
+`albion-config-<guild>.json`, `albion-users-<guild>.json`, `welcome-config-<guild>.json`, `content-callouts.json`, `bank-data-<guild>.json`, `permissions-config-<guild>.json`, `prefix-config-<guild>.json`, `commands-hash.json`, and `guilds/<guild>/` (tickets, panels, transcripts).
 
 ### Env vars
 
@@ -55,7 +56,7 @@ Everyone:
 - `/bank balance [user]` and `/bank active`: ephemeral.
 
 Role-gated:
-- `/content create | adduser | removeuser`: Content Admin role or Administrator. `create` starts the wizard; `adduser`/`removeuser` edit the live callout (by user or slot number).
+- `/content create | adduser | removeuser`: Content Admin role or Administrator. `create` starts the wizard; `adduser`/`removeuser` edit the callout of the thread they are run in (or the server's only callout), by user or slot number.
 - `/regear create <title> <time> [notice]` and `/regear close`: CTA Regear role or Administrator. Create makes a thread and pings the register role; close renames it `[✓]` and locks it.
 - `/bank deposit | withdraw | clear | clearall`: Bank Admin role or Administrator. Public receipts.
 
@@ -66,6 +67,7 @@ Administrator only:
 - `/tier add <role> <days> [hours] [replace] | remove <role> | list`: tenure tiers. Role is granted automatically once a registration is that old (cumulative from registration: tiers at 30d and 60d give the second role at day 60, not day 90). `replace:true` removes lower tier roles when granted. Adding a tier triggers an immediate sweep so existing qualifying members get it.
 - `/config view`: show verification config.
 - `/forceunregister <ign>`, `/purge type:<guild|alliance> confirm:true`, `/registered [type] [tenure] [csv]`. Plain `/registered` is paged 25 per embed (`reg_prev_<type>_<n>`/`reg_next_<type>_<n>` buttons, admin-checked) with optional `csv:true`; `!registered` shows the same paged embed. With `tenure:true` (optionally `csv:true`) it ignores `type` and lists every holder of the register role (`registerRoleId`) with days on the server (Discord `joinedAt`) and days since DB registration (`registeredAt`, a proxy for role-assign date since Discord does not expose that), sorted longest on server first. Deferred reply, paged 20 per embed with `tenure_prev_<n>`/`tenure_next_<n>` buttons (admin-checked; rows rebuilt from member cache per click). `csv:true` attaches the full list via `editOriginalWithFile` (multipart, no auto-dismiss).
+- `/welcome setup <channel> [message] | test | off`: post the welcome card when someone joins. `setup` also turns off Discord's built-in join message; `off` turns it back on. Message placeholders: `{user}`, `{name}`, `{server}`, `{count}`.
 - `/ticket setup <forum> <staff_role> <transcript_channel> [ping_role] [message]`: saves the single `apply` panel and posts the Apply button in the current channel. `/ticket panel [message]` re-posts the button. `/ticket delete` (no options), `list`, `stats`, `health`, `reset confirm:true`. The panel ID is fixed to `apply`; approve role = ping role, nickname format = `{username}`. Prefix `!ticketsetup` keeps its old long signature.
 
 ### Prefix commands (default `!`)
@@ -87,7 +89,6 @@ In the active content thread: `x <role>` (key or short label), `x fill`, `x canc
 
 ## Known issues and decisions pending
 
-- `contentState` is global: only one callout across every server.
 - Ticket system supports one panel (`apply`) per server. The application questions and notice text are hardcoded in `ticket-system.js`.
 - `pendingCreations` entries never expire.
 - Albion region URLs are duplicated in `/info` (slash and prefix) and `albion-api.js`.
@@ -96,6 +97,10 @@ In the active content thread: `x <role>` (key or short label), `x fill`, `x canc
 - The register role doubles as the content/regear ping role.
 
 ## Changelog
+
+### Welcome cards and multi-callout fix
+- Content callouts are now per message (`callouts` Map) instead of one global `contentState`. Before, a second `/content create` overwrote the first, so Fill / role buttons in the first thread changed the second thread's roster or errored. Buttons find the callout by the clicked message id, `x` commands by thread id. Callouts persist across restarts. Tested with two fake callouts and stubbed Discord API (buttons, `x healer`, `/content removeuser slot`, reload); not tested against Discord.
+- Added `/welcome` and the animated welcome card (new deps `@napi-rs/canvas`, `gifuct-js`, `gifenc`). Card render tested locally; join event and system-flag toggle not tested against Discord. Not added to `/help`.
 
 ### Commit log
 - Tenure list now paged (20 per page) plus optional CSV. Reason: Discord caps all embeds in one message at 6000 chars total, so the old multi-embed list failed above ~40 members. `buildTenureListEmbeds` replaced by `buildTenurePage` and `buildTenureCsv` in `embedBuilder.js`; row building moved to `buildTenureRows` in `tiers.js`; `editOriginalWithFile` added to `utils.js`. Tested with 100 fake members (5 pages, CSV 101 lines); not tested against Discord. Plain `/registered` and `!registered` got the same fix next: `buildRegisteredListEmbeds` and `chunkLines` removed, replaced by `buildRegisteredPage` and `buildRegisteredCsv` (tested with 90 fake entries: 4 pages, 91-line CSV; not tested against Discord).

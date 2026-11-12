@@ -1,5 +1,5 @@
 import { loadPrefix } from '../database/guildData.js';
-import { contentState } from '../config/contentState.js';
+import { getCalloutByThread, saveCallouts } from '../config/contentState.js';
 import { buildContentEmbed, autoAssignFillPlayers, ROLE_MAP } from '../services/contentService.js';
 import { DiscordRequest } from '../../utils.js';
 import { handleTicketMessage } from '../systems/ticket/ticket-system.js';
@@ -28,22 +28,24 @@ export async function handleMessageCreate(message, client) {
   const prefix = loadPrefix(message.guild.id).prefix;
 
   // Handle content thread messages
-  if (contentState.active && message.channelId === contentState.threadId) {
+  const callout = getCalloutByThread(message.channelId);
+  if (callout) {
     const content = message.content.toLowerCase().trim();
     const userId = message.author.id;
 
     // x cancel
     if (/^x\s+cancel$/i.test(content)) {
       let found = false;
-      for (const [k, uid] of Object.entries(contentState.roles)) {
-        if (uid === userId) { contentState.roles[k] = null; found = true; break; }
+      for (const [k, uid] of Object.entries(callout.roles)) {
+        if (uid === userId) { callout.roles[k] = null; found = true; break; }
       }
-      const idx = contentState.fill.indexOf(userId);
-      if (idx > -1) { contentState.fill.splice(idx, 1); found = true; }
+      const idx = callout.fill.indexOf(userId);
+      if (idx > -1) { callout.fill.splice(idx, 1); found = true; }
       if (!found) { await message.react('ℹ️'); return; }
       try {
-        const embed = buildContentEmbed();
-        await DiscordRequest(`channels/${contentState.channelId}/messages/${contentState.messageId}`, {
+        saveCallouts();
+        const embed = buildContentEmbed(callout);
+        await DiscordRequest(`channels/${callout.channelId}/messages/${callout.messageId}`, {
           method: 'PATCH', body: { embeds: [embed.toJSON()] }
         });
         await message.react('✅');
@@ -56,15 +58,16 @@ export async function handleMessageCreate(message, client) {
 
     // x fill
     if (/^x\s+fill$/i.test(content)) {
-      if (contentState.fill.includes(userId)) { await message.react('ℹ️'); return; }
-      for (const [k, uid] of Object.entries(contentState.roles)) {
-        if (uid === userId) contentState.roles[k] = null;
+      if (callout.fill.includes(userId)) { await message.react('ℹ️'); return; }
+      for (const [k, uid] of Object.entries(callout.roles)) {
+        if (uid === userId) callout.roles[k] = null;
       }
-      contentState.fill.push(userId);
-      await autoAssignFillPlayers(client);
+      callout.fill.push(userId);
+      await autoAssignFillPlayers(client, callout);
       try {
-        const embed = buildContentEmbed();
-        await DiscordRequest(`channels/${contentState.channelId}/messages/${contentState.messageId}`, {
+        saveCallouts();
+        const embed = buildContentEmbed(callout);
+        await DiscordRequest(`channels/${callout.channelId}/messages/${callout.messageId}`, {
           method: 'PATCH', body: { embeds: [embed.toJSON()] }
         });
         await message.react('🔄');
@@ -82,14 +85,14 @@ export async function handleMessageCreate(message, client) {
 
       // Build shortLabel -> roleKey lookup for only the active roles
       const shortLabelLookup = {};
-      for (const key of contentState.activeRoles) {
+      for (const key of callout.activeRoles) {
         const info = ROLE_MAP[key];
         if (info) shortLabelLookup[info.shortLabel.toLowerCase()] = key;
       }
 
       // Match exact key or shortLabel
       let roleKey = null;
-      if (contentState.activeRoles.includes(input)) {
+      if (callout.activeRoles.includes(input)) {
         roleKey = input;
       } else if (shortLabelLookup[input]) {
         roleKey = shortLabelLookup[input];
@@ -97,25 +100,26 @@ export async function handleMessageCreate(message, client) {
 
       if (!roleKey) return; // Not a recognised role command
 
-      if (contentState.roles[roleKey] && contentState.roles[roleKey] !== userId) {
-        await message.reply(`❌ **${roleKey.toUpperCase()}** is already taken by <@${contentState.roles[roleKey]}>!`);
+      if (callout.roles[roleKey] && callout.roles[roleKey] !== userId) {
+        await message.reply(`❌ **${roleKey.toUpperCase()}** is already taken by <@${callout.roles[roleKey]}>!`);
         return;
       }
-      if (contentState.roles[roleKey] === userId) { await message.react('ℹ️'); return; }
+      if (callout.roles[roleKey] === userId) { await message.react('ℹ️'); return; }
 
       // Remove user from any existing role or fill slot
-      for (const [k, uid] of Object.entries(contentState.roles)) {
-        if (uid === userId) contentState.roles[k] = null;
+      for (const [k, uid] of Object.entries(callout.roles)) {
+        if (uid === userId) callout.roles[k] = null;
       }
-      const fillIdx = contentState.fill.indexOf(userId);
-      if (fillIdx > -1) contentState.fill.splice(fillIdx, 1);
+      const fillIdx = callout.fill.indexOf(userId);
+      if (fillIdx > -1) callout.fill.splice(fillIdx, 1);
 
-      contentState.roles[roleKey] = userId;
-      await autoAssignFillPlayers(client);
+      callout.roles[roleKey] = userId;
+      await autoAssignFillPlayers(client, callout);
 
       try {
-        const embed = buildContentEmbed();
-        await DiscordRequest(`channels/${contentState.channelId}/messages/${contentState.messageId}`, {
+        saveCallouts();
+        const embed = buildContentEmbed(callout);
+        await DiscordRequest(`channels/${callout.channelId}/messages/${callout.messageId}`, {
           method: 'PATCH', body: { embeds: [embed.toJSON()] }
         });
         await message.react('✅');
