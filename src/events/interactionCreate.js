@@ -19,35 +19,35 @@ import {
 } from '../systems/hub/member-hub.js';
 import { EmbedBuilder, PermissionFlagsBits } from 'discord.js';
 import { buildContentEmbed, buildContentComponents, buildMethodSelector, buildPresetNondpsMessage, buildPresetDpsMessage, buildCustomRoleModal, buildContinueToDetailsButton, buildContentDetailsModal, buildContentPreviewEmbed, buildPreviewComponents, buildDuplicatesStep, autoAssignFillPlayers, getRoleDisplayName, getBaseKey, ROLE_MAP } from '../services/contentService.js';
-import { contentState, pendingCreations } from '../config/contentState.js';
+import { pendingCreations, addCallout, getCalloutByMessage, saveCallouts } from '../config/contentState.js';
 
 // Shared logic for all content button interactions
-async function processContentButton(componentId, userId, client) {
-  if (!contentState.active) {
-    return { message: '❌ No active content callout.', updated: false };
+async function processContentButton(callout, componentId, userId, client) {
+  if (!callout) {
+    return { message: '❌ This content callout is no longer active.', updated: false };
   }
   let message = '';
   let updated = false;
 
   if (componentId === 'content_cancel') {
     let found = false;
-    for (const [k, uid] of Object.entries(contentState.roles)) {
-      if (uid === userId) { contentState.roles[k] = null; found = true; break; }
+    for (const [k, uid] of Object.entries(callout.roles)) {
+      if (uid === userId) { callout.roles[k] = null; found = true; break; }
     }
-    const idx = contentState.fill.indexOf(userId);
-    if (idx > -1) { contentState.fill.splice(idx, 1); found = true; }
+    const idx = callout.fill.indexOf(userId);
+    if (idx > -1) { callout.fill.splice(idx, 1); found = true; }
     message = found ? '✅ You have been removed from the role call.' : 'ℹ️ You are not currently signed up.';
     updated = found;
 
   } else if (componentId === 'content_fill') {
-    if (contentState.fill.includes(userId)) {
+    if (callout.fill.includes(userId)) {
       message = 'ℹ️ You are already in the fill list.';
     } else {
-      for (const [k, uid] of Object.entries(contentState.roles)) {
-        if (uid === userId) contentState.roles[k] = null;
+      for (const [k, uid] of Object.entries(callout.roles)) {
+        if (uid === userId) callout.roles[k] = null;
       }
-      contentState.fill.push(userId);
-      await autoAssignFillPlayers(client);
+      callout.fill.push(userId);
+      await autoAssignFillPlayers(client, callout);
       message = '🔄 You have been added to the fill list!';
       updated = true;
     }
@@ -55,20 +55,20 @@ async function processContentButton(componentId, userId, client) {
   } else {
     // content_role_[roleKey]
     const roleKey = componentId.replace('content_role_', '');
-    if (!contentState.activeRoles.includes(roleKey)) {
+    if (!callout.activeRoles.includes(roleKey)) {
       message = `❌ This role is not part of the current content.`;
-    } else if (contentState.roles[roleKey] && contentState.roles[roleKey] !== userId) {
-      message = `❌ The **${roleKey.toUpperCase()}** slot is already taken by <@${contentState.roles[roleKey]}>!`;
-    } else if (contentState.roles[roleKey] === userId) {
+    } else if (callout.roles[roleKey] && callout.roles[roleKey] !== userId) {
+      message = `❌ The **${roleKey.toUpperCase()}** slot is already taken by <@${callout.roles[roleKey]}>!`;
+    } else if (callout.roles[roleKey] === userId) {
       message = `ℹ️ You are already signed up as **${roleKey.toUpperCase()}**.`;
     } else {
-      for (const [k, uid] of Object.entries(contentState.roles)) {
-        if (uid === userId) contentState.roles[k] = null;
+      for (const [k, uid] of Object.entries(callout.roles)) {
+        if (uid === userId) callout.roles[k] = null;
       }
-      const fillIdx = contentState.fill.indexOf(userId);
-      if (fillIdx > -1) contentState.fill.splice(fillIdx, 1);
-      contentState.roles[roleKey] = userId;
-      await autoAssignFillPlayers(client);
+      const fillIdx = callout.fill.indexOf(userId);
+      if (fillIdx > -1) callout.fill.splice(fillIdx, 1);
+      callout.roles[roleKey] = userId;
+      await autoAssignFillPlayers(client, callout);
       message = `✅ You've signed up as **${roleKey.toUpperCase()}**!`;
       updated = true;
     }
@@ -255,17 +255,20 @@ export async function handleButtonInteractions(req, res, client) {
     res.send({ type: InteractionResponseType.DEFERRED_UPDATE_MESSAGE });
 
     try {
-      contentState.active = true;
-      contentState.title = pending.title;
-      contentState.time = pending.time;
-      contentState.demassNotice = pending.demassNotice;
-      contentState.activeRoles = pending.assignedRoles;
-      contentState.roles = Object.fromEntries(pending.assignedRoles.map(k => [k, null]));
-      contentState.customRoleNames = pending.customRoleNames || {};
-      contentState.fill = [];
+      const callout = {
+        guildId: req.body.guild_id,
+        title: pending.title,
+        time: pending.time,
+        demassNotice: pending.demassNotice,
+        activeRoles: pending.assignedRoles,
+        roles: Object.fromEntries(pending.assignedRoles.map(k => [k, null])),
+        customRoleNames: pending.customRoleNames || {},
+        fill: [],
+        createdAt: Date.now(),
+      };
       pendingCreations.delete(userId);
 
-      const embed = buildContentEmbed();
+      const embed = buildContentEmbed(callout);
       const threadResponse = await DiscordRequest(`channels/${channelId}/threads`, {
         method: 'POST',
         body: { name: pending.title, type: 11, auto_archive_duration: 1440 },
@@ -279,14 +282,15 @@ export async function handleButtonInteractions(req, res, client) {
         body: {
           ...(registerRoleId ? { content: `<@&${registerRoleId}>` } : {}),
           embeds: [embed.toJSON()],
-          components: buildContentComponents().map(r => r.toJSON()),
+          components: buildContentComponents(callout).map(r => r.toJSON()),
         },
       });
       const messageData = await messageResponse.json();
 
-      contentState.messageId = messageData.id;
-      contentState.channelId = threadId;
-      contentState.threadId = threadId;
+      callout.messageId = messageData.id;
+      callout.channelId = threadId;
+      callout.threadId = threadId;
+      addCallout(callout);
 
       await DiscordRequest(`webhooks/${process.env.APP_ID}/${req.body.token}/messages/@original`, {
         method: 'PATCH',
@@ -294,7 +298,6 @@ export async function handleButtonInteractions(req, res, client) {
       });
     } catch (err) {
       console.error('❌ Error publishing content (express):', err);
-      contentState.active = false;
       await DiscordRequest(`webhooks/${process.env.APP_ID}/${req.body.token}/messages/@original`, {
         method: 'PATCH',
         body: { content: '❌ Failed to create content thread. Please try again.', embeds: [], components: [], flags: 64 },
@@ -322,12 +325,16 @@ export async function handleButtonInteractions(req, res, client) {
 
     let replyContent = '';
     try {
-      const { message, updated } = await processContentButton(componentId, userId, client);
+      // The clicked message identifies the callout, so each thread only
+      // ever changes its own roster
+      const callout = getCalloutByMessage(req.body.message?.id);
+      const { message, updated } = await processContentButton(callout, componentId, userId, client);
       replyContent = message;
       if (updated) {
-        const embed = buildContentEmbed();
-        const components = buildContentComponents();
-        await DiscordRequest(`channels/${contentState.channelId}/messages/${contentState.messageId}`, {
+        saveCallouts();
+        const embed = buildContentEmbed(callout);
+        const components = buildContentComponents(callout);
+        await DiscordRequest(`channels/${callout.channelId}/messages/${callout.messageId}`, {
           method: 'PATCH',
           body: {
             embeds: [embed.toJSON()],

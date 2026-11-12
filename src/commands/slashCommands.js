@@ -6,7 +6,7 @@ import { deposit, withdraw, getBalance, getActiveUsers, clearUser, clearAll, CUR
 import { loadPermissions, savePermissions } from '../database/guildData.js';
 import { hasPermissionSlash } from '../utils/permissions.js';
 import { buildHelpEmbed, buildPaginatedHelpEmbeds, buildHelpNavigationButtons, buildRegisteredPage, buildRegisteredCsv, buildTenurePage, buildTenureCsv } from '../utils/embedBuilder.js';
-import { contentState, pendingCreations } from '../config/contentState.js';
+import { pendingCreations, findCalloutForCommand, saveCallouts } from '../config/contentState.js';
 import { buildContentEmbed, buildContentComponents, buildSizeSelector, autoAssignFillPlayers, getRoleDisplayName } from '../services/contentService.js';
 import { savePanels, loadPanels } from '../systems/ticket/ticket-db.js';
 import { getTicketStats, ticketSystemHealthCheck } from '../systems/ticket/ticket-utils.js';
@@ -14,6 +14,7 @@ import { unregisterUser, purgeUsers } from '../systems/albion/albion.js';
 import { buildTypePanel } from '../systems/albion/register-ui.js';
 import { applyTiers, getSortedTiers, buildTenureRows } from '../systems/albion/tiers.js';
 import { buildHubPanel, buildBalanceBody, buildUnregisterBody } from '../systems/hub/member-hub.js';
+import { loadWelcomeConfig, saveWelcomeConfig, sendWelcome, setDiscordJoinMessage, DEFAULT_WELCOME_MESSAGE } from '../systems/welcome/welcome.js';
 import { loadAlbionConfig, saveAlbionConfig, validateAlbionConfig, findAlbionUsersByIGN, getAllAlbionUsers } from '../systems/albion/albion-db.js';
 
 export async function handleSlashCommands(req, res, client) {
@@ -233,13 +234,11 @@ export async function handleSlashCommands(req, res, client) {
 
     // Subcommand: adduser
     if (subcommand === 'adduser') {
-      if (!contentState.active) {
+      const callout = findCalloutForCommand(req.body.guild_id, req.body.channel_id);
+      if (!callout) {
         return res.send({
           type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-          data: {
-            content: '❌ No active content callout! Use `/content create` first.',
-            flags: 64
-          },
+          data: { content: '❌ No content callout found here. Run this inside the content thread.', flags: 64 },
         });
       }
 
@@ -247,17 +246,17 @@ export async function handleSlashCommands(req, res, client) {
       const roleOption = req.body.data.options[0].options[1].value;
 
       // Validate role against current active roles
-      if (!contentState.activeRoles.includes(roleOption)) {
+      if (!callout.activeRoles.includes(roleOption)) {
         return res.send({
           type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
           data: {
-            content: `❌ The role **${roleOption}** is not part of this content callout!\n\nActive roles: ${contentState.activeRoles.map(r => `\`${r}\``).join(', ')}`,
+            content: `❌ The role **${roleOption}** is not part of this content callout!\n\nActive roles: ${callout.activeRoles.map(r => `\`${r}\``).join(', ')}`,
             flags: 64
           },
         });
       }
 
-      if (contentState.roles[roleOption]) {
+      if (callout.roles[roleOption]) {
         return res.send({
           type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
           data: {
@@ -267,12 +266,13 @@ export async function handleSlashCommands(req, res, client) {
         });
       }
 
-      contentState.roles[roleOption] = targetUserId;
-      await autoAssignFillPlayers(client);
+      callout.roles[roleOption] = targetUserId;
+      await autoAssignFillPlayers(client, callout);
+      saveCallouts();
 
-      const embed = buildContentEmbed();
+      const embed = buildContentEmbed(callout);
       try {
-        await DiscordRequest(`channels/${contentState.channelId}/messages/${contentState.messageId}`, {
+        await DiscordRequest(`channels/${callout.channelId}/messages/${callout.messageId}`, {
           method: 'PATCH',
           body: { embeds: [embed.toJSON()] },
         });
@@ -294,10 +294,11 @@ export async function handleSlashCommands(req, res, client) {
 
     // Subcommand: removeuser
     if (subcommand === 'removeuser') {
-      if (!contentState.active) {
+      const callout = findCalloutForCommand(req.body.guild_id, req.body.channel_id);
+      if (!callout) {
         return res.send({
           type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-          data: { content: '❌ No active content callout! Use `/content create` first.', flags: 64 },
+          data: { content: '❌ No content callout found here. Run this inside the content thread.', flags: 64 },
         });
       }
 
@@ -318,32 +319,33 @@ export async function handleSlashCommands(req, res, client) {
       if (slotOption != null) {
         // Remove by slot number (1-based)
         const idx = parseInt(slotOption) - 1;
-        if (idx < 0 || idx >= contentState.activeRoles.length) {
+        if (idx < 0 || idx >= callout.activeRoles.length) {
           return res.send({
             type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-            data: { content: `❌ Slot **${slotOption}** is out of range. There are **${contentState.activeRoles.length}** slots.`, flags: 64 },
+            data: { content: `❌ Slot **${slotOption}** is out of range. There are **${callout.activeRoles.length}** slots.`, flags: 64 },
           });
         }
-        roleKey = contentState.activeRoles[idx];
-        if (!contentState.roles[roleKey]) {
+        roleKey = callout.activeRoles[idx];
+        if (!callout.roles[roleKey]) {
           return res.send({
             type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-            data: { content: `❌ Slot **${slotOption}** (${getRoleDisplayName(roleKey, contentState.customRoleNames)}) is already empty.`, flags: 64 },
+            data: { content: `❌ Slot **${slotOption}** (${getRoleDisplayName(roleKey, callout.customRoleNames)}) is already empty.`, flags: 64 },
           });
         }
-        removedUserId = contentState.roles[roleKey];
+        removedUserId = callout.roles[roleKey];
       } else {
         // Remove by Discord user — find which slot they're in
-        roleKey = contentState.activeRoles.find(k => contentState.roles[k] === userOption) || null;
+        roleKey = callout.activeRoles.find(k => callout.roles[k] === userOption) || null;
 
         if (!roleKey) {
           // Check fill list
-          const fillIdx = contentState.fill.indexOf(userOption);
+          const fillIdx = callout.fill.indexOf(userOption);
           if (fillIdx > -1) {
-            contentState.fill.splice(fillIdx, 1);
-            const embed = buildContentEmbed();
+            callout.fill.splice(fillIdx, 1);
+            saveCallouts();
+            const embed = buildContentEmbed(callout);
             try {
-              await DiscordRequest(`channels/${contentState.channelId}/messages/${contentState.messageId}`, {
+              await DiscordRequest(`channels/${callout.channelId}/messages/${callout.messageId}`, {
                 method: 'PATCH',
                 body: { embeds: [embed.toJSON()] },
               });
@@ -363,14 +365,15 @@ export async function handleSlashCommands(req, res, client) {
         removedUserId = userOption;
       }
 
-      contentState.roles[roleKey] = null;
-      await autoAssignFillPlayers(client);
+      callout.roles[roleKey] = null;
+      await autoAssignFillPlayers(client, callout);
+      saveCallouts();
 
-      const slotName = getRoleDisplayName(roleKey, contentState.customRoleNames);
-      const slotNum = contentState.activeRoles.indexOf(roleKey) + 1;
-      const embed = buildContentEmbed();
+      const slotName = getRoleDisplayName(roleKey, callout.customRoleNames);
+      const slotNum = callout.activeRoles.indexOf(roleKey) + 1;
+      const embed = buildContentEmbed(callout);
       try {
-        await DiscordRequest(`channels/${contentState.channelId}/messages/${contentState.messageId}`, {
+        await DiscordRequest(`channels/${callout.channelId}/messages/${callout.messageId}`, {
           method: 'PATCH',
           body: { embeds: [embed.toJSON()] },
         });
@@ -2170,6 +2173,62 @@ The Apply button was posted in this channel.`,
       if (config.loyaltyTiers.length === before) return reply('❌ That role is not a tier.');
       saveAlbionConfig(guildId, config);
       return reply(`✅ <@&${roleId}> is no longer a tier. Members keep the role.`);
+    }
+  }
+
+  if (name === 'welcome') {
+    console.log('👋 Executing /welcome command');
+    const member = req.body.member;
+    const guildId = req.body.guild_id;
+    const sub = req.body.data.options[0];
+    const getOpt = (optName) => (sub.options || []).find(opt => opt.name === optName)?.value;
+    const reply = (content) => res.send({
+      type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+      data: { content, flags: 64, allowed_mentions: { parse: [] } },
+    });
+
+    const isAdmin = member && member.permissions &&
+      (BigInt(member.permissions) & BigInt(PermissionFlagsBits.Administrator)) === BigInt(PermissionFlagsBits.Administrator);
+    if (!isAdmin) return reply('❌ You need Administrator permission to use this command.');
+
+    const config = loadWelcomeConfig(guildId);
+
+    if (sub.name === 'setup') {
+      config.enabled = true;
+      config.channelId = getOpt('channel');
+      config.message = getOpt('message')?.replace(/\n/g, '\n') || config.message || DEFAULT_WELCOME_MESSAGE;
+      saveWelcomeConfig(guildId, config);
+      const suppressed = await setDiscordJoinMessage(guildId, false);
+      const note = suppressed
+        ? "Discord's default join message is now off."
+        : "⚠️ Could not turn off Discord's own join message (the bot needs **Manage Server**). Turn it off in Server Settings → Engagement → System Messages → \"Send a random welcome message when someone joins\".";
+      return reply(`✅ Welcome cards will be posted in <#${config.channelId}>. Run \`/welcome test\` to preview.\n${note}`);
+    }
+
+    if (sub.name === 'off') {
+      config.enabled = false;
+      saveWelcomeConfig(guildId, config);
+      const restored = await setDiscordJoinMessage(guildId, true);
+      return reply(`✅ Welcome cards turned off.${restored ? " Discord's default join message is back on." : ''}`);
+    }
+
+    if (sub.name === 'test') {
+      if (!config.channelId) return reply('❌ No welcome channel set. Run `/welcome setup` first.');
+      res.send({ type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE, data: { flags: 64 } });
+      let content;
+      try {
+        const guild = client.guilds.cache.get(guildId);
+        const guildMember = await guild.members.fetch(member.user.id);
+        const channel = await sendWelcome(guildMember, { force: true });
+        content = channel ? `✅ Test card posted in <#${channel.id}>.` : '❌ Welcome channel not found. Run `/welcome setup` again.';
+      } catch (err) {
+        console.error('Error sending test welcome:', err);
+        content = '❌ Could not post the card. Check the bot can send messages and attach files in the welcome channel.';
+      }
+      return DiscordRequest(`webhooks/${process.env.APP_ID}/${req.body.token}/messages/@original`, {
+        method: 'PATCH',
+        body: { content, flags: 64 },
+      });
     }
   }
 

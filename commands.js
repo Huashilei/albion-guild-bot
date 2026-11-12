@@ -627,6 +627,37 @@ const TIER_COMMAND = {
   contexts: [0]
 };
 
+// Custom welcome card for new members (Admin only)
+const WELCOME_COMMAND = {
+  name: 'welcome',
+  description: 'Welcome new members with a custom card (Admin only)',
+  options: [
+    {
+      type: 1, // SUB_COMMAND
+      name: 'setup',
+      description: "Post a welcome card here when someone joins (turns off Discord's default join message)",
+      options: [
+        { type: 7, name: 'channel', description: 'Channel for welcome cards', required: true, channel_types: [0, 5] }, // CHANNEL
+        { type: 3, name: 'message', description: 'Text with the card. Use {user}, {name}, {server}, {count}', required: false, max_length: 1500 }
+      ]
+    },
+    {
+      type: 1,
+      name: 'test',
+      description: 'Post a welcome card for yourself in the welcome channel'
+    },
+    {
+      type: 1,
+      name: 'off',
+      description: "Stop welcome cards and turn Discord's default join message back on"
+    }
+  ],
+  default_member_permissions: '8', // Administrator only
+  type: 1,
+  integration_types: [0],
+  contexts: [0]
+};
+
 // Ticket management command (Admin only)
 const TICKET_COMMAND = {
   name: 'ticket',
@@ -692,7 +723,7 @@ const TICKET_COMMAND = {
   contexts: [0],
 };
 
-export const ALL_COMMANDS = [UTC_COMMAND, INFO_COMMAND, HELP_COMMAND, CONTENT_COMMAND, REGEAR_COMMAND, BANK_COMMAND, PERMS_COMMAND, SET_COMMAND, CONFIG_COMMAND, REGISTER_COMMAND, PANEL_COMMAND, UNREGISTER_COMMAND, FORCEUNREGISTER_COMMAND, PURGE_COMMAND, REGISTERED_COMMAND, TIER_COMMAND, TICKET_COMMAND];
+export const ALL_COMMANDS = [UTC_COMMAND, INFO_COMMAND, HELP_COMMAND, CONTENT_COMMAND, REGEAR_COMMAND, BANK_COMMAND, PERMS_COMMAND, SET_COMMAND, CONFIG_COMMAND, REGISTER_COMMAND, PANEL_COMMAND, UNREGISTER_COMMAND, FORCEUNREGISTER_COMMAND, PURGE_COMMAND, REGISTERED_COMMAND, TIER_COMMAND, TICKET_COMMAND, WELCOME_COMMAND];
 
 const HASH_FILE = path.join(DATA_DIR, 'commands-hash.json');
 

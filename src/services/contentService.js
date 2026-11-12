@@ -8,7 +8,6 @@
   TextInputBuilder,
   TextInputStyle,
 } from 'discord.js';
-import { contentState } from '../config/contentState.js';
 
 // ─── Role definitions ──────────────────────────────────────────────────────────
 
@@ -350,8 +349,8 @@ const formatEventTime = (timeStr) => {
 };
 
 // Build the content embed dynamically from activeRoles
-export const buildContentEmbed = () => {
-  const { title, time, demassNotice, activeRoles, roles, fill, customRoleNames } = contentState;
+export const buildContentEmbed = (callout) => {
+  const { title, time, demassNotice, activeRoles, roles, fill, customRoleNames } = callout;
   const total = activeRoles.length;
   const filled = activeRoles.filter(k => roles[k] != null).length;
   const isFull = total > 0 && filled === total;
@@ -408,8 +407,8 @@ export const buildContentEmbed = () => {
 };
 
 // Build Discord button rows dynamically from activeRoles (max 4 role rows + 1 utility row)
-export const buildContentComponents = () => {
-  const { activeRoles, customRoleNames } = contentState;
+export const buildContentComponents = (callout) => {
+  const { activeRoles, customRoleNames } = callout;
 
   const btn = (customId, label, style = ButtonStyle.Primary) =>
     new ButtonBuilder().setCustomId(customId).setLabel(label).setStyle(style);
@@ -736,29 +735,29 @@ export const buildPreviewComponents = () => [
 
 // ─── Auto-assign fill players ──────────────────────────────────────────────────
 
-export async function autoAssignFillPlayers(client) {
-  const { activeRoles } = contentState;
+export async function autoAssignFillPlayers(client, callout) {
+  const { activeRoles } = callout;
   if (!activeRoles || activeRoles.length === 0) return;
 
   // Shuffle fill array so assignment order is unpredictable
-  for (let i = contentState.fill.length - 1; i > 0; i--) {
+  for (let i = callout.fill.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [contentState.fill[i], contentState.fill[j]] = [contentState.fill[j], contentState.fill[i]];
+    [callout.fill[i], callout.fill[j]] = [callout.fill[j], callout.fill[i]];
   }
 
-  while (contentState.fill.length > 0) {
-    const emptySlots = activeRoles.filter(key => contentState.roles[key] === null);
+  while (callout.fill.length > 0) {
+    const emptySlots = activeRoles.filter(key => callout.roles[key] === null);
     if (emptySlots.length === 0) break;
 
     const emptySlot = emptySlots[Math.floor(Math.random() * emptySlots.length)];
-    const fillPlayerId = contentState.fill.shift();
-    contentState.roles[emptySlot] = fillPlayerId;
+    const fillPlayerId = callout.fill.shift();
+    callout.roles[emptySlot] = fillPlayerId;
     console.log(`✅ Fill assigned: <@${fillPlayerId}> → ${emptySlot.toUpperCase()}`);
 
     try {
-      const channel = await client.channels.fetch(contentState.threadId);
+      const channel = await client.channels.fetch(callout.threadId);
       if (channel) {
-        const displayName = getRoleDisplayName(emptySlot, contentState.customRoleNames || {});
+        const displayName = getRoleDisplayName(emptySlot, callout.customRoleNames || {});
         await channel.send(`✅ <@${fillPlayerId}> has been automatically assigned to **${displayName}** from FILL!`);
       }
     } catch (err) {
