@@ -1,0 +1,644 @@
+[
+ {
+  "id": "b1",
+  "title": "EARTHRUNE",
+  "player": "",
+  "note": "",
+  "items": {
+   "weapon": [
+    "T8_2H_SHAPESHIFTER_KEEPER"
+   ],
+   "offhand": [],
+   "head": [
+    "T8_HEAD_LEATHER_SET1"
+   ],
+   "armor": [
+    "T8_ARMOR_PLATE_SET2"
+   ],
+   "shoes": [
+    "T8_SHOES_CLOTH_SET2",
+    "T8_SHOES_LEATHER_ROYAL",
+    "T8_SHOES_LEATHER_MORGANA"
+   ],
+   "cape": [
+    "T8_CAPEITEM_MORGANA"
+   ],
+   "food": [
+    "T7_MEAL_OMELETTE_AVALON"
+   ],
+   "potion": [
+    "T5_POTION_REVIVE"
+   ]
+  }
+ },
+ {
+  "id": "b2",
+  "title": "HOJ",
+  "player": "",
+  "note": "",
+  "items": {
+   "weapon": [
+    "T8_2H_HAMMER_AVALON"
+   ],
+   "offhand": [],
+   "head": [
+    "T8_HEAD_LEATHER_SET3"
+   ],
+   "armor": [
+    "T8_ARMOR_PLATE_SET3"
+   ],
+   "shoes": [
+    "T8_SHOES_CLOTH_SET2"
+   ],
+   "cape": [
+    "T8_CAPEITEM_SMUGGLER"
+   ],
+   "food": [
+    "T7_MEAL_OMELETTE_AVALON"
+   ],
+   "potion": [
+    "T5_POTION_REVIVE"
+   ]
+  }
+ },
+ {
+  "id": "b3",
+  "title": "BEDROCK/TAPROOT",
+  "player": "",
+  "note": "",
+  "items": {
+   "weapon": [
+    "T8_MAIN_ROCKMACE_KEEPER"
+   ],
+   "offhand": [
+    "T8_OFF_TOTEM_KEEPER"
+   ],
+   "head": [
+    "T8_HEAD_LEATHER_SET3"
+   ],
+   "armor": [
+    "T8_ARMOR_PLATE_HELL"
+   ],
+   "shoes": [
+    "T8_SHOES_CLOTH_SET2",
+    "T8_SHOES_LEATHER_ROYAL",
+    "T8_SHOES_LEATHER_MORGANA"
+   ],
+   "cape": [
+    "T8_CAPEITEM_SMUGGLER"
+   ],
+   "food": [
+    "T7_MEAL_OMELETTE_AVALON"
+   ],
+   "potion": [
+    "T5_POTION_REVIVE"
+   ]
+  }
+ },
+ {
+  "id": "b4",
+  "title": "BEDROCK/TAPROOT",
+  "player": "",
+  "note": "",
+  "items": {
+   "weapon": [
+    "T8_MAIN_ROCKMACE_KEEPER"
+   ],
+   "offhand": [
+    "T8_OFF_TOTEM_KEEPER"
+   ],
+   "head": [
+    "T8_HEAD_LEATHER_SET3"
+   ],
+   "armor": [
+    "T8_ARMOR_PLATE_HELL"
+   ],
+   "shoes": [
+    "T8_SHOES_CLOTH_SET2",
+    "T8_SHOES_LEATHER_ROYAL",
+    "T8_SHOES_LEATHER_MORGANA"
+   ],
+   "cape": [
+    "T8_CAPEITEM_SMUGGLER"
+   ],
+   "food": [
+    "T7_MEAL_OMELETTE_AVALON"
+   ],
+   "potion": [
+    "T5_POTION_REVIVE"
+   ]
+  }
+ },
+ {
+  "id": "b5",
+  "title": "GREAT ARCANE",
+  "player": "",
+  "note": "",
+  "items": {
+   "weapon": [
+    "T8_2H_ARCANESTAFF"
+   ],
+   "offhand": [],
+   "head": [
+    "T8_HEAD_LEATHER_SET3"
+   ],
+   "armor": [
+    "T8_ARMOR_PLATE_SET2"
+   ],
+   "shoes": [
+    "T8_SHOES_CLOTH_SET2",
+    "T8_SHOES_LEATHER_ROYAL",
+    "T8_SHOES_LEATHER_MORGANA"
+   ],
+   "cape": [
+    "T8_CAPEITEM_SMUGGLER"
+   ],
+   "food": [
+    "T7_MEAL_OMELETTE_AVALON"
+   ],
+   "potion": [
+    "T5_POTION_REVIVE"
+   ]
+  }
+ },
+ {
+  "id": "b6",
+  "title": "POLE HAMMER",
+  "player": "",
+  "note": "",
+  "items": {
+   "weapon": [
+    "T8_2H_POLEHAMMER"
+   ],
+   "offhand": [],
+   "head": [
+    "T8_HEAD_PLATE_KEEPER"
+   ],
+   "armor": [
+    "T8_ARMOR_PLATE_AVALON"
+   ],
+   "shoes": [
+    "T8_SHOES_CLOTH_SET2",
+    "T8_SHOES_LEATHER_ROYAL",
+    "T8_SHOES_LEATHER_MORGANA"
+   ],
+   "cape": [
+    "T8_CAPEITEM_SMUGGLER"
+   ],
+   "food": [
+    "T7_MEAL_OMELETTE_AVALON"
+   ],
+   "potion": [
+    "T5_POTION_REVIVE"
+   ]
+  }
+ },
+ {
+  "id": "b7",
+  "title": "OCCULT",
+  "player": "",
+  "note": "",
+  "items": {
+   "weapon": [
+    "T8_2H_ARCANESTAFF_HELL"
+   ],
+   "offhand": [],
+   "head": [
+    "T8_HEAD_LEATHER_SET3"
+   ],
+   "armor": [
+    "T8_ARMOR_LEATHER_ROYAL"
+   ],
+   "shoes": [
+    "T8_SHOES_CLOTH_SET2",
+    "T8_SHOES_LEATHER_ROYAL",
+    "T8_SHOES_LEATHER_MORGANA"
+   ],
+   "cape": [
+    "T8_CAPEITEM_FW_MARTLOCK"
+   ],
+   "food": [
+    "T7_MEAL_OMELETTE_AVALON"
+   ],
+   "potion": [
+    "T5_POTION_REVIVE"
+   ]
+  }
+ },
+ {
+  "id": "b8",
+  "title": "LIFECURSE",
+  "player": "",
+  "note": "",
+  "items": {
+   "weapon": [
+    "T8_MAIN_CURSEDSTAFF_UNDEAD"
+   ],
+   "offhand": [],
+   "head": [
+    "T8_HEAD_LEATHER_SET3"
+   ],
+   "armor": [
+    "T8_ARMOR_PLATE_HELL"
+   ],
+   "shoes": [
+    "T8_SHOES_CLOTH_SET2",
+    "T8_SHOES_LEATHER_ROYAL",
+    "T8_SHOES_LEATHER_MORGANA"
+   ],
+   "cape": [
+    "T8_CAPEITEM_FW_LYMHURST"
+   ],
+   "food": [
+    "T7_MEAL_OMELETTE_AVALON"
+   ],
+   "potion": [
+    "T5_POTION_REVIVE"
+   ]
+  }
+ },
+ {
+  "id": "b9",
+  "title": "ROTCALLER/CRYPTCANDLE",
+  "player": "",
+  "note": "",
+  "items": {
+   "weapon": [
+    "T8_MAIN_CURSEDSTAFF_CRYSTAL"
+   ],
+   "offhand": [
+    "T8_OFF_LAMP_UNDEAD"
+   ],
+   "head": [
+    "T8_HEAD_PLATE_SET2"
+   ],
+   "armor": [
+    "T8_ARMOR_CLOTH_AVALON"
+   ],
+   "shoes": [
+    "T8_SHOES_PLATE_UNDEAD"
+   ],
+   "cape": [
+    "T8_CAPEITEM_FW_LYMHURST"
+   ],
+   "food": [
+    "T7_MEAL_OMELETTE_AVALON"
+   ],
+   "potion": [
+    "T5_POTION_REVIVE"
+   ]
+  }
+ },
+ {
+  "id": "b10",
+  "title": "SPIRITHUNTER",
+  "player": "",
+  "note": "",
+  "items": {
+   "weapon": [
+    "T8_2H_HARPOON_HELL"
+   ],
+   "offhand": [],
+   "head": [
+    "T8_HEAD_LEATHER_SET3"
+   ],
+   "armor": [
+    "T8_ARMOR_LEATHER_ROYAL"
+   ],
+   "shoes": [
+    "T8_SHOES_PLATE_UNDEAD"
+   ],
+   "cape": [
+    "T8_CAPEITEM_FW_LYMHURST"
+   ],
+   "food": [
+    "T7_MEAL_OMELETTE_AVALON"
+   ],
+   "potion": [
+    "T5_POTION_REVIVE"
+   ]
+  }
+ },
+ {
+  "id": "b11",
+  "title": "HALLOWFALL/MISTCALLER/BEAM",
+  "player": "",
+  "note": "Beam also allowed",
+  "items": {
+   "weapon": [
+    "T8_MAIN_HOLYSTAFF_AVALON"
+   ],
+   "offhand": [
+    "T8_OFF_HORN_KEEPER"
+   ],
+   "head": [
+    "T8_HEAD_PLATE_SET1"
+   ],
+   "armor": [
+    "T8_ARMOR_CLOTH_AVALON"
+   ],
+   "shoes": [
+    "T8_SHOES_CLOTH_SET2",
+    "T8_SHOES_LEATHER_ROYAL",
+    "T8_SHOES_LEATHER_MORGANA"
+   ],
+   "cape": [
+    "T8_CAPEITEM_FW_LYMHURST"
+   ],
+   "food": [
+    "T7_MEAL_OMELETTE_AVALON",
+    "T7_MEAL_OMELETTE_FISH"
+   ],
+   "potion": [
+    "T5_POTION_REVIVE"
+   ]
+  }
+ },
+ {
+  "id": "b12",
+  "title": "HALLOWFALL/MISTCALLER/BEAM",
+  "player": "",
+  "note": "Beam also allowed",
+  "items": {
+   "weapon": [
+    "T8_MAIN_HOLYSTAFF_AVALON"
+   ],
+   "offhand": [
+    "T8_OFF_HORN_KEEPER"
+   ],
+   "head": [
+    "T8_HEAD_PLATE_SET1"
+   ],
+   "armor": [
+    "T8_ARMOR_LEATHER_FEY"
+   ],
+   "shoes": [
+    "T8_SHOES_CLOTH_SET2",
+    "T8_SHOES_LEATHER_ROYAL",
+    "T8_SHOES_LEATHER_MORGANA"
+   ],
+   "cape": [
+    "T8_CAPEITEM_FW_LYMHURST"
+   ],
+   "food": [
+    "T7_MEAL_OMELETTE_AVALON",
+    "T7_MEAL_OMELETTE_FISH"
+   ],
+   "potion": [
+    "T5_POTION_REVIVE"
+   ]
+  }
+ },
+ {
+  "id": "b13",
+  "title": "REDEMPTION",
+  "player": "",
+  "note": "",
+  "items": {
+   "weapon": [
+    "T8_2H_HOLYSTAFF_UNDEAD"
+   ],
+   "offhand": [],
+   "head": [
+    "T8_HEAD_PLATE_SET1"
+   ],
+   "armor": [
+    "T8_ARMOR_CLOTH_AVALON"
+   ],
+   "shoes": [
+    "T8_SHOES_CLOTH_SET2",
+    "T8_SHOES_LEATHER_ROYAL",
+    "T8_SHOES_LEATHER_MORGANA"
+   ],
+   "cape": [
+    "T8_CAPEITEM_FW_LYMHURST"
+   ],
+   "food": [
+    "T7_MEAL_OMELETTE_AVALON",
+    "T7_MEAL_OMELETTE_FISH"
+   ],
+   "potion": [
+    "T5_POTION_REVIVE"
+   ]
+  }
+ },
+ {
+  "id": "b14",
+  "title": "BLIGHT",
+  "player": "",
+  "note": "",
+  "items": {
+   "weapon": [
+    "T8_2H_NATURESTAFF_HELL"
+   ],
+   "offhand": [],
+   "head": [
+    "T8_HEAD_CLOTH_KEEPER"
+   ],
+   "armor": [
+    "T8_ARMOR_CLOTH_FEY"
+   ],
+   "shoes": [
+    "T8_SHOES_CLOTH_SET2",
+    "T8_SHOES_LEATHER_ROYAL",
+    "T8_SHOES_LEATHER_MORGANA"
+   ],
+   "cape": [
+    "T8_CAPEITEM_FW_LYMHURST"
+   ],
+   "food": [
+    "T7_MEAL_OMELETTE_AVALON",
+    "T7_MEAL_OMELETTE_FISH"
+   ],
+   "potion": [
+    "T5_POTION_REVIVE"
+   ]
+  }
+ },
+ {
+  "id": "b15",
+  "title": "RIFTGLAIVE",
+  "player": "",
+  "note": "",
+  "items": {
+   "weapon": [
+    "T8_2H_GLAIVE_CRYSTAL"
+   ],
+   "offhand": [],
+   "head": [
+    "T8_HEAD_LEATHER_SET3"
+   ],
+   "armor": [
+    "T8_ARMOR_CLOTH_AVALON"
+   ],
+   "shoes": [
+    "T8_SHOES_PLATE_UNDEAD"
+   ],
+   "cape": [
+    "T8_CAPEITEM_FW_LYMHURST"
+   ],
+   "food": [
+    "T8_MEAL_STEW",
+    "T8_MEAL_STEW_FISH"
+   ],
+   "potion": [
+    "T5_POTION_REVIVE"
+   ]
+  }
+ },
+ {
+  "id": "b16",
+  "title": "RIFTGLAIVE",
+  "player": "",
+  "note": "",
+  "items": {
+   "weapon": [
+    "T8_2H_GLAIVE_CRYSTAL"
+   ],
+   "offhand": [],
+   "head": [
+    "T8_HEAD_LEATHER_SET3"
+   ],
+   "armor": [
+    "T8_ARMOR_CLOTH_AVALON"
+   ],
+   "shoes": [
+    "T8_SHOES_PLATE_UNDEAD"
+   ],
+   "cape": [
+    "T8_CAPEITEM_FW_LYMHURST"
+   ],
+   "food": [
+    "T8_MEAL_STEW",
+    "T8_MEAL_STEW_FISH"
+   ],
+   "potion": [
+    "T5_POTION_REVIVE"
+   ]
+  }
+ },
+ {
+  "id": "b17",
+  "title": "DAWNSONG",
+  "player": "",
+  "note": "",
+  "items": {
+   "weapon": [
+    "T8_2H_FIRE_RINGPAIR_AVALON"
+   ],
+   "offhand": [],
+   "head": [
+    "T8_HEAD_LEATHER_SET3"
+   ],
+   "armor": [
+    "T8_ARMOR_CLOTH_FEY"
+   ],
+   "shoes": [
+    "T8_SHOES_PLATE_UNDEAD"
+   ],
+   "cape": [
+    "T8_CAPEITEM_FW_LYMHURST"
+   ],
+   "food": [
+    "T8_MEAL_STEW",
+    "T8_MEAL_STEW_FISH"
+   ],
+   "potion": [
+    "T5_POTION_REVIVE"
+   ]
+  }
+ },
+ {
+  "id": "b18",
+  "title": "PERMAFROST",
+  "player": "",
+  "note": "",
+  "items": {
+   "weapon": [
+    "T8_2H_ICECRYSTAL_UNDEAD"
+   ],
+   "offhand": [],
+   "head": [
+    "T8_HEAD_LEATHER_SET3"
+   ],
+   "armor": [
+    "T8_ARMOR_CLOTH_SET1"
+   ],
+   "shoes": [
+    "T8_SHOES_PLATE_UNDEAD"
+   ],
+   "cape": [
+    "T8_CAPEITEM_FW_LYMHURST"
+   ],
+   "food": [
+    "T8_MEAL_STEW",
+    "T8_MEAL_STEW_FISH"
+   ],
+   "potion": [
+    "T5_POTION_REVIVE"
+   ]
+  }
+ },
+ {
+  "id": "b19",
+  "title": "SPIKE",
+  "player": "",
+  "note": "Icon assumed to be Spiked Gauntlets",
+  "items": {
+   "weapon": [
+    "T8_2H_KNUCKLES_SET3"
+   ],
+   "offhand": [],
+   "head": [
+    "T8_HEAD_LEATHER_FEY"
+   ],
+   "armor": [
+    "T8_ARMOR_CLOTH_AVALON"
+   ],
+   "shoes": [
+    "T8_SHOES_PLATE_UNDEAD"
+   ],
+   "cape": [
+    "T8_CAPEITEM_FW_LYMHURST"
+   ],
+   "food": [
+    "T8_MEAL_STEW",
+    "T8_MEAL_STEW_FISH"
+   ],
+   "potion": [
+    "T5_POTION_REVIVE"
+   ]
+  }
+ },
+ {
+  "id": "b20",
+  "title": "LONGBOW",
+  "player": "",
+  "note": "",
+  "items": {
+   "weapon": [
+    "T8_2H_LONGBOW"
+   ],
+   "offhand": [],
+   "head": [
+    "T8_HEAD_LEATHER_FEY"
+   ],
+   "armor": [
+    "T8_ARMOR_CLOTH_AVALON"
+   ],
+   "shoes": [
+    "T8_SHOES_PLATE_UNDEAD"
+   ],
+   "cape": [
+    "T8_CAPEITEM_FW_LYMHURST"
+   ],
+   "food": [
+    "T8_MEAL_STEW",
+    "T8_MEAL_STEW_FISH"
+   ],
+   "potion": [
+    "T5_POTION_REVIVE"
+   ]
+  }
+ }
+]

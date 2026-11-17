@@ -11,6 +11,7 @@ A white-label Discord bot of guild tools for Albion Online, featuring automatic 
 - **Tenure Tiers** - Automatically grant extra roles as members stay registered longer (e.g. Veteran at 30 days, Old at 60)
 - **Virtual Bank** - Track virtual currency for guild activities
 - **Content Management** - Organize group content with role signups
+- **Comp Rosters** - A web page of builds (with Albion item icons) that members sign in to and claim; admins edit builds on the same page
 - **Ticket System** - Application and support tickets
 - **Regear Threads** - Manage regear requests for any content type
 
@@ -41,6 +42,9 @@ Copy `.env.Example` to `.env` and fill in real values - **never commit `.env`** 
 | `DATA_DIR` | No | Where per-guild JSON data is stored. Defaults to `/home/container/data` (matches the Pelican egg layout). Set this to a local path (e.g. `./data`) for local development |
 | `BOT_NAME` | No | Display name shown in help embeds and footers. Defaults to `Minokawa`. Set this to your own guild or bot name - the bot is white-label, so no code changes are needed to rebrand it |
 | `PORT` | No | Port the Express server listens on for the `/interactions` webhook. Defaults to `3000` |
+| `PUBLIC_URL` | For `/comp` | Public https address of this bot, no trailing slash (e.g. `https://bot.example.com`). Roster links and the Discord login use it |
+| `DISCORD_CLIENT_SECRET` | For `/comp` | OAuth2 client secret of your application (Developer Portal -> OAuth2). Used only to sign members in with Discord |
+| `SESSION_SECRET` | No | Secret that signs login cookies. If unset, one is derived from `DISCORD_TOKEN` |
 
 ### 3. Register slash commands
 
@@ -86,6 +90,18 @@ Pushing to `main` only builds and publishes a new image - it does **not** auto-r
 
 ---
 
+### Comp rosters (optional)
+
+A roster is a web page at `<PUBLIC_URL>/comp/<serverId>/<rosterId>`. Members open the link from Discord, sign in with Discord, and press **Claim** on an open build; the name used is their registered Albion name (`/register`). Members with the Content Admin role or Administrator can edit everything on the page: build names, icons per slot (searchable picker), notes, order, and who holds each build.
+
+Setup, once:
+
+1. In the Developer Portal open **OAuth2**, copy the **Client Secret**, and add this redirect: `<PUBLIC_URL>/comp/auth/callback`
+2. Set `PUBLIC_URL` and `DISCORD_CLIENT_SECRET` (see the table above) and restart the bot. The bot's web port must be reachable at `PUBLIC_URL` (the same port as `/interactions`).
+3. In Discord run `/comp create name:CLAP-KITE clap_kite:true`. The bot posts the link; share it wherever you like.
+
+Rules: one build per player per roster (claiming another frees the first), players can release their own build, admins can assign or clear any build, and a closed roster rejects claims. Sign-in only reads the Discord user id; nothing else is requested.
+
 ## Data & Storage
 
 There is no database - all persistence is flat JSON files under `DATA_DIR`, one set per guild:
@@ -93,6 +109,7 @@ There is no database - all persistence is flat JSON files under `DATA_DIR`, one 
 | File | Owner | Purpose |
 |---|---|---|
 | `prefix-config-{guildId}.json` | `src/database/guildData.js` | Custom command prefix (default `!`) |
+| `comp-{guildId}.json` | `src/systems/comp/comp-db.js` | Comp rosters, their builds and who claimed them |
 | `permissions-config-{guildId}.json` | `src/database/guildData.js` | Role lists allowed to manage bank/CTA/content |
 | `albion-config-{guildId}.json` | `src/systems/albion/albion-db.js` | Guild/region/role/nickname-format configuration |
 | `albion-users-{guildId}.json` | `src/systems/albion/albion-db.js` | Registered members |
@@ -127,6 +144,7 @@ All writes go through a temp-file-then-rename pattern (`src/utils/atomicFile.js`
 | `/config view` | View guild verification settings |
 | `/bank balance [@user]` | Check your balance or another user's |
 | `/bank active` | See all members with bank balances |
+| `/comp list` | Show this server's build rosters with their links |
 
 **Regions:** `americas`, `europe`, `asia`
 
@@ -179,6 +197,9 @@ If an alliance tag is missing, alliance name is used instead; if both are missin
 | `/content reset` | Reset content system for a new callout |
 | `/content adduser @user [role]` | Manually add a user to a role slot |
 | `/content removeuser [role]` | Remove a user from a role slot |
+| `/comp create <name> [clap_kite]` | Create a build roster and post its link (`clap_kite:true` starts with the 20 CLAP-KITE builds) |
+| `/comp post <roster>` | Re-post a roster link in this channel |
+| `/comp delete <roster> confirm:true` | Delete a roster. Roster ids come from `/comp list` |
 
 Content types: **ROA** (Roads of Avalon, 7 roles + fill), **CTA** (tank/heal/dps/support/dtank), **GCAMPS** (5 roles + fill), **FF** (tank/heal/dps), **Tracking** (5 roles + fill), **Avadungeon** (10 roles + fill).
 

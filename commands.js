@@ -627,6 +627,42 @@ const TIER_COMMAND = {
   contexts: [0]
 };
 
+// Build rosters: players claim a build on a web page (Content Admin role or Administrator manage them)
+const COMP_COMMAND = {
+  name: 'comp',
+  description: 'Build rosters players can claim a build from',
+  options: [
+    {
+      type: 1, // SUB_COMMAND
+      name: 'create',
+      description: 'Create a roster and post its link here',
+      options: [
+        { type: 3, name: 'name', description: 'Roster name, e.g. CLAP-KITE', required: true, max_length: 60 },
+        { type: 5, name: 'clap_kite', description: 'Start with the 20 CLAP-KITE builds (default: empty roster)', required: false },
+      ],
+    },
+    { type: 1, name: 'list', description: 'Show this server\'s rosters with links' },
+    {
+      type: 1, // SUB_COMMAND
+      name: 'post',
+      description: 'Post a roster link in this channel',
+      options: [{ type: 3, name: 'roster', description: 'Roster id from /comp list', required: true }],
+    },
+    {
+      type: 1, // SUB_COMMAND
+      name: 'delete',
+      description: 'Delete a roster and all its claims',
+      options: [
+        { type: 3, name: 'roster', description: 'Roster id from /comp list', required: true },
+        { type: 5, name: 'confirm', description: 'Set to true to delete', required: true },
+      ],
+    },
+  ],
+  type: 1,
+  integration_types: [0],
+  contexts: [0],
+};
+
 // Custom welcome card for new members (Admin only)
 const WELCOME_COMMAND = {
   name: 'welcome',
@@ -725,7 +761,7 @@ const TICKET_COMMAND = {
   contexts: [0],
 };
 
-export const ALL_COMMANDS = [UTC_COMMAND, INFO_COMMAND, HELP_COMMAND, CONTENT_COMMAND, REGEAR_COMMAND, BANK_COMMAND, PERMS_COMMAND, SET_COMMAND, CONFIG_COMMAND, REGISTER_COMMAND, PANEL_COMMAND, UNREGISTER_COMMAND, FORCEUNREGISTER_COMMAND, PURGE_COMMAND, REGISTERED_COMMAND, TIER_COMMAND, TICKET_COMMAND, WELCOME_COMMAND];
+export const ALL_COMMANDS = [UTC_COMMAND, INFO_COMMAND, HELP_COMMAND, CONTENT_COMMAND, REGEAR_COMMAND, BANK_COMMAND, PERMS_COMMAND, SET_COMMAND, CONFIG_COMMAND, REGISTER_COMMAND, PANEL_COMMAND, UNREGISTER_COMMAND, FORCEUNREGISTER_COMMAND, PURGE_COMMAND, REGISTERED_COMMAND, TIER_COMMAND, TICKET_COMMAND, WELCOME_COMMAND, COMP_COMMAND];
 
 const HASH_FILE = path.join(DATA_DIR, 'commands-hash.json');
 

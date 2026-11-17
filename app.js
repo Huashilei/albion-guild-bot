@@ -12,6 +12,7 @@ import { scheduleEphemeralDismiss } from './utils.js';
 import { handleVoiceStateUpdate, cleanupTempChannels } from './src/systems/tempvc/temp-vc.js';
 import { applyTiers } from './src/systems/albion/tiers.js';
 import { handleGuildMemberAdd } from './src/systems/welcome/welcome.js';
+import { mountCompRoutes } from './src/systems/comp/comp-web.js';
 
 // Ensure data directory exists
 if (!fs.existsSync(DATA_DIR)) {
@@ -147,6 +148,9 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
     }
   }
 });
+
+// Comp roster web pages (Discord login + roster API) under /comp
+mountCompRoutes(app, client);
 
 // Start Express server
 app.listen(PORT, () => {

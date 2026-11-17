@@ -16,6 +16,8 @@ import { applyTiers, getSortedTiers, buildTenureRows } from '../systems/albion/t
 import { buildHubPanel, buildBalanceBody, buildUnregisterBody } from '../systems/hub/member-hub.js';
 import { loadWelcomeConfig, saveWelcomeConfig, sendWelcome, setDiscordJoinMessage, DEFAULT_WELCOME_MESSAGE, OLD_DEFAULT_WELCOME_MESSAGE } from '../systems/welcome/welcome.js';
 import { loadAlbionConfig, saveAlbionConfig, validateAlbionConfig, findAlbionUsersByIGN, getAllAlbionUsers } from '../systems/albion/albion-db.js';
+import { listRosters, getRoster, createRoster, deleteRoster } from '../systems/comp/comp-db.js';
+import { compConfigured, compRosterUrl } from '../systems/comp/comp-web.js';
 
 export async function handleSlashCommands(req, res, client) {
   const { name } = req.body.data;
@@ -2232,6 +2234,68 @@ The Apply button was posted in this channel.`,
         method: 'PATCH',
         body: { content, flags: 64 },
       });
+    }
+  }
+
+  // "/comp" command - build rosters players claim from a web page
+  if (name === 'comp') {
+    console.log('📋 Executing /comp command');
+    const member = req.body.member;
+    const guildId = req.body.guild_id;
+    const sub = req.body.data.options[0];
+    const getOpt = (optName) => (sub.options || []).find(opt => opt.name === optName)?.value;
+    const reply = (content, extra = {}) => res.send({
+      type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+      data: { content, flags: 64, allowed_mentions: { parse: [] }, ...extra },
+    });
+
+    if (!compConfigured()) {
+      return reply('❌ Rosters are not set up yet. The bot owner needs to set `PUBLIC_URL` and `DISCORD_CLIENT_SECRET` and restart the bot (see the README, "Comp rosters").');
+    }
+
+    const linkBody = (roster) => ({
+      embeds: [new EmbedBuilder()
+        .setColor(0xF5B83D)
+        .setTitle(`📋 ${roster.title}`)
+        .setDescription('Open the roster, sign in with Discord, and **claim a build**. Your registered Albion name is used, so run `/register` first if you have not.')
+        .setFooter({ text: `${roster.builds.length} builds · ${roster.builds.filter(b => b.player).length} taken` })
+        .toJSON()],
+      components: [{ type: 1, components: [{ type: 2, style: 5, label: 'Open roster', url: compRosterUrl(guildId, roster.id) }] }],
+    });
+
+    if (sub.name === 'list') {
+      const rosters = listRosters(guildId);
+      if (!rosters.length) return reply('No rosters yet. An admin can create one with `/comp create`.');
+      const lines = rosters.map(r =>
+        `**${r.title}**${r.closed ? ' (closed)' : ''} · id \`${r.id}\` · ${r.builds.length} builds, ${r.builds.filter(b => b.player).length} taken\n${compRosterUrl(guildId, r.id)}`);
+      return reply(lines.join('\n\n').slice(0, 1900));
+    }
+
+    if (!hasPermissionSlash(member, 'contentAdminRoles', guildId)) {
+      return reply('❌ You need the Content Admin role or Administrator permission to manage rosters.');
+    }
+
+    if (sub.name === 'create') {
+      let roster;
+      try {
+        roster = createRoster(guildId, { title: getOpt('name'), createdBy: member.user.id, seed: getOpt('clap_kite') ? 'clap-kite' : null });
+      } catch (err) {
+        return reply(`❌ ${err.message}`);
+      }
+      return res.send({ type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE, data: linkBody(roster) });
+    }
+
+    const roster = getRoster(guildId, String(getOpt('roster') || '').trim().toLowerCase());
+    if (!roster) return reply('❌ No roster with that id. Run `/comp list` to see the ids.');
+
+    if (sub.name === 'post') {
+      return res.send({ type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE, data: linkBody(roster) });
+    }
+
+    if (sub.name === 'delete') {
+      if (!getOpt('confirm')) return reply('Set `confirm` to true to delete the roster.');
+      deleteRoster(guildId, roster.id);
+      return reply(`🗑️ Deleted roster **${roster.title}**.`);
     }
   }
 
