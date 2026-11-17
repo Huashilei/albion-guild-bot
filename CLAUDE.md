@@ -24,15 +24,16 @@ White-label Discord bot for Albion Online guilds. Node ESM (`"type": "module"`),
 - `src/systems/ticket/`: forum-based application tickets (`ticket-system.js` handlers, `ticket-db.js` storage, `ticket-commands.js` prefix helpers, `ticket-utils.js` stats/health).
 - `src/systems/welcome/welcome.js`: posts `assets/welcome/welcome.gif` (3.4MB, sent as-is, no text drawn on it) plus the welcome message. Holds per-guild config, `handleGuildMemberAdd` (wired in `app.js`) and `setDiscordJoinMessage`, which toggles the guild `system_channel_flags` SUPPRESS_JOIN_NOTIFICATIONS bit (needs Manage Server).
 - `src/systems/tempvc/temp-vc.js`: join-to-create voice. Joining a voice channel named `CREATE VC` (case-insensitive) creates `<name>'s VC` in the same category (copies bitrate, user limit, overwrites), moves the member in, and deletes it when empty. Temp channel ids persist in `DATA_DIR/temp-vc.json` for cleanup after restarts. Needs the `GuildVoiceStates` intent and Manage Channels + Move Members permissions.
+- `src/systems/comp/`: comp rosters. `comp-db.js` stores rosters per guild and applies every change through `applyOp` (claim, release, update, add, duplicate, delete, move, meta, clear-players; permission rules live there). `comp-web.js` is an Express router mounted at `/comp` from `app.js`: Discord OAuth login (`identify` scope), HMAC-signed session cookie, JSON API at `/comp/api/<guild>/<roster>`, icons and catalog as static files, and the page `assets/comp/app.html`. `assets/comp/` holds 323 Render AO icons (`icons/<ITEM_ID>.webp`), `catalog.json` (id + name), and `seed-clap-kite.json` (the 20 starting builds).
 - `src/database/guildData.js`: prefix and role-permission files. `src/utils/permissions.js`: `hasPermission` (gateway member) and `hasPermissionSlash` (raw interaction member). `src/utils/embedBuilder.js`: help pages and the registered-members list. `src/utils/atomicFile.js`: atomic JSON write.
 
 ### Data files (all under `DATA_DIR`)
 
-`albion-config-<guild>.json`, `albion-users-<guild>.json`, `welcome-config-<guild>.json`, `content-callouts.json`, `bank-data-<guild>.json`, `permissions-config-<guild>.json`, `prefix-config-<guild>.json`, `commands-hash.json`, and `guilds/<guild>/` (tickets, panels, transcripts).
+`albion-config-<guild>.json`, `albion-users-<guild>.json`, `comp-<guild>.json`, `welcome-config-<guild>.json`, `content-callouts.json`, `bank-data-<guild>.json`, `permissions-config-<guild>.json`, `prefix-config-<guild>.json`, `commands-hash.json`, and `guilds/<guild>/` (tickets, panels, transcripts).
 
 ### Env vars
 
-`APP_ID`, `DISCORD_TOKEN`, `PUBLIC_KEY`, `DATA_DIR`, `BOT_NAME`, `PORT`, and optionally `EPHEMERAL_AUTO_DISMISS=false` to disable auto-dismiss.
+`APP_ID`, `DISCORD_TOKEN`, `PUBLIC_KEY`, `DATA_DIR`, `BOT_NAME`, `PORT`, and optionally `EPHEMERAL_AUTO_DISMISS=false` to disable auto-dismiss. For `/comp`: `PUBLIC_URL` and `DISCORD_CLIENT_SECRET` (both required, otherwise `/comp` and the `/comp/*` routes say rosters are not set up), optional `SESSION_SECRET` (else derived from `DISCORD_TOKEN`). The portal needs the redirect `<PUBLIC_URL>/comp/auth/callback`.
 
 ## Key behaviours and gotchas
 
@@ -59,6 +60,7 @@ Role-gated:
 - `/content create | adduser | removeuser`: Content Admin role or Administrator. `create` starts the wizard; `adduser`/`removeuser` edit the callout of the thread they are run in (or the server's only callout), by user or slot number.
 - `/regear create <title> <time> [notice]` and `/regear close`: CTA Regear role or Administrator. Create makes a thread and pings the register role; close renames it `[✓]` and locks it.
 - `/bank deposit | withdraw | clear | clearall`: Bank Admin role or Administrator. Public receipts.
+- `/comp create <name> [clap_kite] | post <roster> | delete <roster> confirm`: Content Admin role or Administrator (checked at runtime, no `default_member_permissions`). `create` and `post` send a public embed with an "Open roster" link button. `/comp list` is open to everyone (ephemeral, shows ids and links). Roster id = 8 hex chars.
 
 Administrator only:
 - `/panel [message]`: post the Member Hub in the current channel.
@@ -87,6 +89,13 @@ In the active content thread: `x <role>` (key or short label), `x fill`, `x canc
 - Tickets: `apply_ticket` (creates a forum post; hardcoded to panel `apply`), `ticket_claim`, `ticket_close`.
 - Help paging: `help_prev_<n>`, `help_next_<n>`.
 
+### Comp roster web page (`/comp/<guildId>/<rosterId>`)
+
+- Everything requires sign-in; the page shell is public but carries no data. A user must be a member of the guild (gateway member fetch). Admin = Administrator or `contentAdminRoles`. Player name = the user's active guild (else alliance) registration `ign`; unregistered members can view but not claim.
+- One build per player per roster (claiming moves them). Admin typing a player name clears `claimedBy`. Admin edits are field-level patches, so they never overwrite a player's concurrent claim. The page polls every 15s and pauses while a field is focused or the picker is open.
+- Item ids are validated against `catalog.json` and slot limits (weapon 1, offhand 1, head 1, armor 1, shoes 3, cape 1, food 3, potion 2) on the server. POSTs must be `application/json` and, when an Origin header is sent, match `PUBLIC_URL`.
+- Icons are static files at `/comp/icons/<id>.webp` (public). Item data comes from the ao-bin-dumps item list; icons from the Render AO image service.
+
 ## Known issues and decisions pending
 
 - Ticket system supports one panel (`apply`) per server. The application questions and notice text are hardcoded in `ticket-system.js`.
@@ -97,6 +106,11 @@ In the active content thread: `x <role>` (key or short label), `x fill`, `x canc
 - The register role doubles as the content/regear ping role.
 
 ## Changelog
+
+### Comp rosters (build roster web page)
+- New `src/systems/comp/` (`comp-db.js`, `comp-web.js`), `assets/comp/` (page, 323 icons, catalog, CLAP-KITE seed), `/comp` command (create, list, post, delete), mounted in `app.js` via `mountCompRoutes(app, client)`. New env vars `PUBLIC_URL`, `DISCORD_CLIENT_SECRET`, optional `SESSION_SECRET`; the Developer Portal needs the redirect `<PUBLIC_URL>/comp/auth/callback`. No new npm dependencies. `/help` updated.
+- Tested with a fake guild client and stubbed Discord OAuth: 56 checks on login/session, claim/release rules, admin edits and sanitising, origin/content-type guards, static files, and the `/comp` slash handler; page driven in headless Chrome as player, admin and logged out (no console errors). Not tested against real Discord (OAuth redirect, member fetch, link button).
+- Run `npm run register` or restart to push `/comp`.
 
 ### Welcome cards and multi-callout fix
 - Content callouts are now per message (`callouts` Map) instead of one global `contentState`. Before, a second `/content create` overwrote the first, so Fill / role buttons in the first thread changed the second thread's roster or errored. Buttons find the callout by the clicked message id, `x` commands by thread id. Callouts persist across restarts. Tested with two fake callouts and stubbed Discord API (buttons, `x healer`, `/content removeuser slot`, reload); not tested against Discord.

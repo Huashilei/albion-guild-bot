@@ -65,7 +65,8 @@ export function buildHelpEmbed(member, guildId, isSlashCommand = false) {
     description += `**🎮 Content Admin Commands** ${isAdmin ? '(Administrator)' : '(Authorized Role)'}:\n`;
     description += `• \`/content create\` - Create a content callout (guided: size, roles, details)\n`;
     description += `• \`/content adduser @user [role]\` - Add user to content role\n`;
-    description += `• \`/content removeuser [role]\` - Remove user from content role\n\n`;
+    description += `• \`/content removeuser [role]\` - Remove user from content role\n`;
+    description += `• \`/comp create <name>\` - Create a build roster players claim from a web page (also \`/comp list\`, \`/comp post\`, \`/comp delete\`)\n\n`;
   }
 
   // Full Admin Commands (Only for Discord Administrators)
@@ -186,6 +187,10 @@ export function buildPaginatedHelpEmbeds(member, guildId, isSlashCommand = false
     page2Desc += `  Add user to content role slot\n`;
     page2Desc += `• \`/content removeuser [role]\`\n`;
     page2Desc += `  Remove user from content role slot\n`;
+    page2Desc += `• \`/comp create <name> [clap_kite]\`\n`;
+    page2Desc += `  Create a build roster. Players open the link, sign in with Discord and claim a build; admins edit builds on the page\n`;
+    page2Desc += `• \`/comp list\` / \`/comp post <roster>\` / \`/comp delete <roster> confirm:true\`\n`;
+    page2Desc += `  List rosters with links, re-post a roster link, delete a roster\n`;
   }
 
   if (page2Desc) {
